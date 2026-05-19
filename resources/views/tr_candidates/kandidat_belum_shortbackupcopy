@@ -1,0 +1,85 @@
+{{--  @extends('layouts.app')  --}}
+@extends('layouts/contentNavbarLayout')
+
+@section('content')
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"> -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.datatables.net/1.10.18/css/dataTables.bootstrap4.min.css" rel="stylesheet">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.10.18/js/dataTables.bootstrap4.min.js"></script>
+
+        <center>  <h style="font-weight: bold"> KANDIDAT BELUM DI SHORTLIST </h> </center>
+    </head>
+<body>
+    <style>
+        td
+            {
+            font-size: 12px;
+            }
+        tr
+            {
+            font-size: 12px;
+            }
+    </style>
+    <br>
+    <!-- <table class="table table-bordered table-striped"> -->
+    <!-- <table class="table responsive" id="sort"> -->
+    <table class="table responsive" id="dataTable" >
+        <thead>
+            <tr>
+                <th scope="col" style="text-align: center;">Name</th>
+                <th scope="col" style="text-align: center;">Domisili</th>
+                <th scope="col" style="text-align: center;">Usia</th>
+                <th scope="col" style="text-align: center;">Gender</th>
+                <th scope="col" style="text-align: center;">Agama</th>
+                <th scope="col" style="text-align: center;">Handphone</th>
+                <th scope="col" style="text-align: center;">Posisi</th>
+                <th scope="col" style="text-align: center;">Tgl.Melamar</th>
+                <th scope="col" style="text-align: center;">Perusahaan Terakhir</th>
+                {{--  <th scope="col" style="text-align: center;">Action</th>  --}}
+                {{-- <th scope="col" style="text-align: center;">Call</th>
+                <th scope="col" style="text-align: center;">Interview</th> --}}
+            </tr>
+        </thead>
+        <tbody>
+        @foreach($call as $trCandidate)
+            <tr>
+                <td data-table-header="Title"><a class="underlineHover" href="/detail_kandidat/detail_kandidat_belum_short/{{ $trCandidate->Ktp }}">{{ $trCandidate->Name }}</a> </td>
+                {{--  <a href="/detail_kandidat/detail_kandidat_belum_interview/{{$trCandidate->Handphone}}" style="color:#000">  --}}
+                <td>{{ $trCandidate->domisili }}</td>
+                <td>{{ $trCandidate->umur }}</td>
+                {{--  <td>{{ date_format(date_create($trCandidate->Birthdate),"d-m-Y")}}  </td>  --}}
+                <td>{{ $trCandidate->jenis_kelamin }}</td>
+                <td>{{ $trCandidate->agama }}</td>
+                <td>{{ $trCandidate->Handphone }}</td>
+                <td>{{ $trCandidate->Position_aplly1 }}</td>
+                <td>{{ date_format(date_create($trCandidate->created_at),"d/m/Y") }}</td>
+                <td>{{ $trCandidate->Perusahaan }}</td>
+                {{--  <td width="150" style="text-align: center;">
+                    <div class="btn-group" role="group" aria-label="Call Action">
+                        <button type="button" class="btn btn-light">
+                          <a href="{{ route('tr_candidates/kandidat_belum_short', [$trCandidate->Ktp ]) }}" style="color:#000">
+                            <i class="far fa-eye"> View</i>
+                        </a>
+                        </button>
+                    </div>
+                </td>  --}}
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+</div>
+
+<script>
+    $(document).ready(function() {
+          $('#dataTable').DataTable();
+    });
+</script>
+@endsection

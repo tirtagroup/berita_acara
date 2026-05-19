@@ -1,0 +1,277 @@
+
+{
+  "menu": [
+    {
+      "menuHeader": "Master"
+    },
+    {
+      "name": "Master",
+      "icon": "menu-icon tf-icons bx bx-user",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "sp/master_type",
+          "name": "Type SP",
+          "slug": "forms-basic-inputs",
+          "role": ["guest"]
+        },
+        {
+          "url": "/lokasi/company",
+          "name": "Company",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/lokasi/master_lokasi",
+          "name": "Lokasi",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "#",
+          "name": "Kasus BA",
+          "slug": "forms-basic-inputs",
+          "submenu": [
+            {
+              "url": "/kategori_ba",
+              "name": "Kategori",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/kasus_ba",
+              "name": "Kasus",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/detail_kasus_ba",
+              "name": "Detail Kasus",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master_detail_kasus",
+              "name": "Master Detail Kasus",
+              "slug": "forms-basic-inputs"
+            }
+          ]
+        }
+      ]
+    },
+
+
+    {
+      "menuHeader": "Forms"
+    },
+    {
+      "name": "Dashboard BA",
+      "icon": "menu-icon tf-icons fas fa-home",
+      "slug": "forms",
+      "url": "/dashboard_semua_ba"
+    },
+    {
+      "name": "Create BA",
+      "icon": "menu-icon tf-icons fas fa-book",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "/berita_acara_all",
+          "name": "Berita Acara",
+          "slug": "forms-basic-inputs"
+        }
+
+      ]
+    },
+    {
+      "name": "Laka",
+      "icon": "menu-icon tf-icons fas fa-truck",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "/ba_laka",
+          "name": "Create",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/dashboard_ba_laka",
+          "name": "List",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/report_laka",
+          "name": "Report Laka",
+          "slug": "forms-basic-inputs"
+        }
+      ]
+    },
+    {
+      "name": "Request Revisi",
+      "icon": "menu-icon tf-icons bx bx-pencil",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "/request_revisi",
+          "name": "Create",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/list_request",
+          "name": "History",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/dashboard_revisi",
+          "name": "Report",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/validasi_ba",
+          "name": "Approval",
+          "slug": "forms-basic-inputs",
+          "submenu": [
+            {
+              "url": "/validasi_ba",
+              "name": "Approve Supervisor",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_ba2",
+              "name": "Approve HRD",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_ba3",
+              "name": "Approve Manager Finance",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_manager",
+              "name": "Approve Manager Operasional",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_gm",
+              "name": "Approve General Manager",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_it",
+              "name": "Approve IT",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/validasi_bod",
+              "name": "Approve BOD",
+              "slug": "forms-basic-inputs"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "(Kejadian-Temuan)",
+      "icon": "menu-icon tf-icons fas fa-hands",
+      "slug": "forms",
+      "url": "/beritaacara",
+      "submenu": [
+        {
+          "url": "/input_berita_acara_spv",
+          "name": "Create",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/dashboard_ba",
+          "name": "History",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/action_temuan",
+          "name": "Check",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/berita_acara/report_ba",
+          "name": "Report BA",
+          "slug": "forms-basic-inputs"
+        }
+      ]
+    },
+    {
+      "name": "PICA",
+      "icon": "menu-icon tf-icons fas fa-check-circle",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "/create_pica",
+          "name": "Create",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/dashboard_pica",
+          "name": "History",
+          "slug": "forms-basic-inputs"
+        }
+      ]
+    },
+    {
+      "name": "Assessment",
+      "icon": "menu-icon tf-icons fas fa-sort-numeric-up",
+      "slug": "forms",
+      "url": "/#",
+      "submenu": [
+       {
+          "url": "/asasmen/all_staff",
+          "name": "Staff",
+          "slug": "forms-basic-inputs"
+        },
+
+        {
+          "url": "/report_asesmen_data",
+          "name": "Report",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/history_asasmen",
+          "name": "History",
+          "slug": "forms-basic-inputs"
+        }
+      ]
+    },
+
+    {
+      "name": "SP",
+      "icon": "menu-icon tf-icons fas fa-exclamation-circle",
+      "slug": "forms",
+      "submenu": [
+        {
+          "url": "#",
+          "name": "SP 1",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "#",
+          "name": "SP 2",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "#",
+          "name": "SP 3",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/sp_history",
+          "name": "History SP",
+          "slug": "laravel-example-user-management"
+        },
+        {
+          "url": "#",
+          "name": "Report SP",
+          "slug": "laravel-example-user-management"
+        }
+      ]
+    }
+  ]
+}
+
+
+
+
+
+
+
