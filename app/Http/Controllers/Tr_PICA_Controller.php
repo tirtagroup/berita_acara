@@ -373,6 +373,9 @@ class Tr_PICA_Controller extends Controller
     {
       $user = auth()->user();
 
+      $tgl_awal  = Carbon::now()->startOfMonth()->format('Y-m-d');
+      $tgl_akhir = Carbon::now()->format('Y-m-d');
+
       $report = DB::connection('mysql')->select("
         select
         if(ket is null, 'belum dilihat',ket) ket,
@@ -393,10 +396,11 @@ class Tr_PICA_Controller extends Controller
           WHERE Ms_User = '$user->username'
           GROUP BY Tr_PICA_Emp_h_Code
         ) d on header.Tr_Pica_Emp_h_Code = d.Tr_PICA_Emp_h_Code
-          where  DATE(header.created_at) = CURRENT_DATE;
+          where date(header.created_at) >= '$tgl_awal'
+          and date(header.created_at) <= '$tgl_akhir';
       ");
       // dd($report);
-      return view ('pika.dashboard_pika', compact('report'));
+      return view ('pika.dashboard_pika', compact('report', 'tgl_awal', 'tgl_akhir'));
     }
     public function detail_check_pica(Request $request, $id)
     {

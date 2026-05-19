@@ -27,7 +27,7 @@
         },
         {
           "url": "#",
-          "name": "Kasus BA",
+          "name": "Kasus BA (lama)",
           "slug": "forms-basic-inputs",
           "submenu": [
             {
@@ -48,6 +48,28 @@
             {
               "url": "/master_detail_kasus",
               "name": "Master Detail Kasus",
+              "slug": "forms-basic-inputs"
+            }
+          ]
+        },
+        {
+          "url": "#",
+          "name": "Kategori BA (baru)",
+          "slug": "forms-basic-inputs",
+          "submenu": [
+            {
+              "url": "/master/kategori",
+              "name": "Daftar Kategori",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/opsi",
+              "name": "Semua Opsi (Global)",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/bu-mapping",
+              "name": "BU × Kategori Mapping",
               "slug": "forms-basic-inputs"
             }
           ]
@@ -72,10 +94,14 @@
       "submenu": [
         {
           "url": "/berita_acara_all",
-          "name": "Berita Acara",
+          "name": "Berita Acara (lama)",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/beritaacara/v2/create",
+          "name": "Input BA — Wizard (baru)",
           "slug": "forms-basic-inputs"
         }
-
       ]
     },
     {

@@ -29,6 +29,8 @@ use App\Http\Controllers\Detail_Kasus_Controller;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\Master_MultiDetailKasus_Controller;
 use App\Http\Controllers\Tr_PICA_Controller;
+use App\Http\Controllers\MasterKategoriController;
+use App\Http\Controllers\BeritaAcaraV2Controller;
 
 use Illuminate\Support\Facades\Auth;
 
@@ -733,4 +735,64 @@ Route::middleware([
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
+});
+
+// ============================================================
+// Master Kategori BA (Fase 2 — admin CRUD)
+// ============================================================
+Route::middleware('auth')->group(function () {
+    Route::prefix('master/kategori')->name('master.kategori.')->group(function () {
+        Route::get('/',               [MasterKategoriController::class, 'index'])->name('index');
+        Route::get('/create',         [MasterKategoriController::class, 'create'])->name('create');
+        Route::post('/',              [MasterKategoriController::class, 'store'])->name('store');
+        Route::get('/{id}/edit',      [MasterKategoriController::class, 'edit'])->name('edit');
+        Route::put('/{id}',           [MasterKategoriController::class, 'update'])->name('update');
+        Route::patch('/{id}/toggle',  [MasterKategoriController::class, 'toggle'])->name('toggle');
+
+        // BU mapping per kategori (manage langsung dari edit kategori)
+        Route::post('/{id}/bu',           [MasterKategoriController::class, 'kategoriBuUpsert'])->name('bu.upsert');
+        Route::delete('/{id}/bu/{bu}',    [MasterKategoriController::class, 'kategoriBuDetach'])->name('bu.detach');
+
+        // Opsi per kategori (nested)
+        Route::get('/{kategori}/opsi',                 [MasterKategoriController::class, 'opsiIndex'])->name('opsi.index');
+        Route::post('/{kategori}/opsi',                [MasterKategoriController::class, 'opsiStore'])->name('opsi.store');
+        Route::put('/{kategori}/opsi/{opsi}',          [MasterKategoriController::class, 'opsiUpdate'])->name('opsi.update');
+        Route::patch('/{kategori}/opsi/{opsi}/toggle', [MasterKategoriController::class, 'opsiToggle'])->name('opsi.toggle');
+    });
+
+    Route::prefix('master/bu-mapping')->name('master.mapping.')->group(function () {
+        Route::get('/',        [MasterKategoriController::class, 'mappingMatrix'])->name('index');
+        Route::post('/update', [MasterKategoriController::class, 'mappingUpdate'])->name('update');
+    });
+
+    // ============================================================
+    // Berita Acara v2 — Wizard (Fase 3)
+    // ============================================================
+    Route::prefix('beritaacara/v2')->name('berita-acara-v2.')->group(function () {
+        Route::get('/create',  [BeritaAcaraV2Controller::class, 'create'])->name('create');
+        Route::post('/store',  [BeritaAcaraV2Controller::class, 'store'])->name('store');
+    });
+
+    // AJAX endpoint untuk wizard
+    Route::prefix('api')->group(function () {
+        Route::get('/bu/{kode}/kategori',      [BeritaAcaraV2Controller::class, 'kategoriByBu']);
+        Route::get('/kategori/{id}/opsi',      [BeritaAcaraV2Controller::class, 'opsiByKategori']);
+        Route::get('/employees/search',        [BeritaAcaraV2Controller::class, 'searchEmployees']);
+    });
+
+    // Opsi global (lintas kategori — list & create + detail/edit + attach/detach)
+    Route::prefix('master/opsi')->name('master.opsi.')->group(function () {
+        Route::get('/',  [MasterKategoriController::class, 'opsiGlobalIndex'])->name('index');
+        Route::post('/', [MasterKategoriController::class, 'opsiGlobalStore'])->name('store');
+
+        Route::get('/{id}/edit',  [MasterKategoriController::class, 'opsiEdit'])->name('edit');
+        Route::put('/{id}',       [MasterKategoriController::class, 'opsiGlobalUpdate'])->name('update');
+        Route::post('/{id}/attach', [MasterKategoriController::class, 'opsiAttach'])->name('attach');
+        Route::delete('/{id}/detach/{kategori}', [MasterKategoriController::class, 'opsiDetach'])->name('detach');
+        Route::put('/{id}/mapping/{kategori}',   [MasterKategoriController::class, 'opsiMappingUpdate'])->name('mapping.update');
+
+        // Tag BU langsung ke opsi
+        Route::post('/{id}/bu',           [MasterKategoriController::class, 'opsiAttachBu'])->name('bu.attach');
+        Route::delete('/{id}/bu/{bu}',    [MasterKategoriController::class, 'opsiDetachBu'])->name('bu.detach');
+    });
 });
