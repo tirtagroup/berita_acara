@@ -71,7 +71,7 @@
         <div class="step" data-target="#step-kronologi">
           <button type="button" class="step-trigger">
             <span class="bs-stepper-circle">5</span>
-            <span class="bs-stepper-label">LAKA &amp; Kronologi</span>
+            <span class="bs-stepper-label">LAKA</span>
           </button>
         </div>
         <div class="line"></div>
@@ -158,8 +158,28 @@
               </select>
             </div>
             <div class="col-12">
+              <label class="form-label">Ms Kasus (legacy)</label>
+              <select name="ms_kasus" id="ms-kasus-select" class="form-select" style="width:100%"></select>
+              <small class="text-muted">Cari minimal 2 huruf (kode atau deskripsi). Opsional — untuk kompat data legacy.</small>
+            </div>
+            <div class="col-12">
               <label class="form-label">Deskripsi singkat <span class="text-danger">*</span></label>
               <textarea name="deskripsi" class="form-control" rows="3" maxlength="500" required></textarea>
+            </div>
+
+            {{-- Kronologi (pindah dari step LAKA — wajib untuk semua BA) --}}
+            <div class="col-12">
+              <hr>
+              <label class="form-label">Kronologi kejadian <span class="text-danger">*</span></label>
+              <small class="text-muted d-block mb-2">Detail kronologi (urutan kejadian). Bisa tambah lebih dari 1 baris untuk multi-step.</small>
+              <div id="kronologi-list">
+                <div class="kronologi-item mb-2">
+                  <textarea name="kronologi[]" class="form-control" rows="3" placeholder="Detail kronologi kejadian..." required></textarea>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-kronologi">
+                <i class="bx bx-plus"></i> Tambah baris kronologi
+              </button>
             </div>
           </div>
           <div class="d-flex justify-content-between mt-4">
@@ -172,8 +192,7 @@
         <div id="step-kategori" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Kategori Umum (multi-select)</h5>
-            <small>Kategori lintas BU. <span class="badge bg-danger">Wajib</span> auto-check & terkunci.
-              FnB &amp; LAKA punya step sendiri.</small>
+            <small>Pilih kategori yang relevan. Kategori "wajib" akan auto-check.</small>
           </div>
 
           <div id="kategori-umum-container">
@@ -201,32 +220,16 @@
           </div>
         </div>
 
-        {{-- ============ STEP 4: LAKA + KRONOLOGI ============ --}}
+        {{-- ============ STEP 5: LAKA (kategori only) ============ --}}
         <div id="step-kronologi" class="content">
           <div class="content-header mb-3">
-            <h5 class="mb-0">LAKA &amp; Kronologi</h5>
-            <small>Kategori LAKA + detail kronologi kejadian (wajib bila ada kategori LAKA dichek).</small>
+            <h5 class="mb-0">Kategori LAKA</h5>
+            <small>Kategori khusus LAKA. Step ini skip otomatis bila BU bukan LAKA.</small>
           </div>
 
-          {{-- Kategori LAKA (di-load dari step 3 logic, dipindah ke sini) --}}
-          <div class="mb-4">
-            <h6 class="mb-2">Kategori LAKA</h6>
-            <div id="kategori-laka-container">
-              <div class="text-muted small">Tidak ada kategori LAKA untuk BU yang dipilih.</div>
-            </div>
+          <div id="kategori-laka-container">
+            <div class="text-muted small">Tidak ada kategori LAKA untuk BU yang dipilih.</div>
           </div>
-
-          <hr>
-
-          <h6 class="mb-2">Detail Kronologi</h6>
-          <div id="kronologi-list">
-            <div class="kronologi-item mb-2">
-              <textarea name="kronologi[]" class="form-control" rows="3" placeholder="Detail kronologi kejadian..."></textarea>
-            </div>
-          </div>
-          <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-kronologi">
-            <i class="bx bx-plus"></i> Tambah baris kronologi
-          </button>
 
           <div class="d-flex justify-content-between mt-4">
             <button type="button" class="btn btn-outline-secondary btn-prev"><i class="bx bx-chevron-left"></i> Kembali</button>
@@ -389,6 +392,22 @@ document.addEventListener('DOMContentLoaded', function() {
         $('#emp-div-select').val(divisiCode).trigger('change');
       }
     });
+
+    // Ms Kasus picker — AJAX search
+    $('#ms-kasus-select').select2({
+      width: '100%',
+      placeholder: 'Cari kode atau deskripsi kasus...',
+      allowClear: true,
+      minimumInputLength: 2,
+      ajax: {
+        url: '/api/kasus/search',
+        dataType: 'json',
+        delay: 300,
+        data: function (params) { return { q: params.term }; },
+        processResults: function (data) { return data; },
+        cache: true,
+      },
+    });
   }
 
   // ===== BU radio card =====
@@ -435,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
           buckets[bucket].push({ ...k, _idx: idx });
         });
 
-        // Render UMUM ke step 3
+        // Render UMUM ke step 3 — flat list
         umumCont.innerHTML = '';
         if (buckets.UMUM.length === 0) {
           umumCont.innerHTML = '<div class="text-muted py-3">Tidak ada kategori Umum untuk BU ini.</div>';
@@ -486,30 +505,30 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="badge bg-${k.level === 'wajib' ? 'danger' : (k.level === 'disarankan' ? 'warning text-dark' : 'secondary')} ms-2">${k.level}</span>
         </label>
       </div>
-      <div class="opsi-container mt-2" style="display:${isWajib ? 'block' : 'none'};">
+      <div class="opsi-container mt-2">
         <small class="text-muted">Loading opsi...</small>
       </div>
       <input type="hidden" name="kategori[${idx}][id]" value="${isWajib ? k.id : ''}" class="kategori-hidden-id">
     `;
     container.appendChild(block);
 
-    if (isWajib) {
-      loadOpsiForKategori(block, k.id, idx);
-    }
+    // Selalu load opsi (tampil untuk semua kategori, bukan hanya wajib)
+    loadOpsiForKategori(block, k.id, idx);
 
     const cb = block.querySelector('.kategori-check');
     const hiddenId = block.querySelector('.kategori-hidden-id');
-    const opsiCont = block.querySelector('.opsi-container');
     if (!isWajib) {
       cb.addEventListener('change', function() {
-        if (this.checked) {
+        // Toggle hidden id; opsi tetap visible tapi disable bila kategori unchecked
+        // (lihat handler form submit — disabled inputs tidak ikut submit)
+        hiddenId.value = this.checked ? k.id : '';
+      });
+
+      // Bila user klik opsi tanpa kategori dichek, auto-check kategori
+      block.addEventListener('change', function(e) {
+        if (e.target.classList.contains('opsi-check') && e.target.checked && !cb.checked) {
+          cb.checked = true;
           hiddenId.value = k.id;
-          opsiCont.style.display = 'block';
-          loadOpsiForKategori(block, k.id, idx);
-        } else {
-          hiddenId.value = '';
-          opsiCont.style.display = 'none';
-          opsiCont.innerHTML = '';
         }
       });
     }
@@ -669,24 +688,20 @@ document.addEventListener('DOMContentLoaded', function() {
           return false;
         }
       }
+      // Kronologi minimal 1 baris ber-isi
+      const krono = document.querySelectorAll('[name="kronologi[]"]');
+      const hasContent = Array.from(krono).some(t => t.value.trim().length > 0);
+      if (!hasContent) {
+        alert('Kronologi kejadian wajib diisi minimal 1 baris.');
+        krono[0]?.focus();
+        return false;
+      }
     }
     if (active.id === 'step-kategori') {
       const checked = document.querySelectorAll('.kategori-check:checked');
       if (checked.length === 0) {
         alert('Pilih minimal 1 kategori.');
         return false;
-      }
-    }
-    if (active.id === 'step-kronologi') {
-      const lakaPenyebab = Array.from(document.querySelectorAll('.kategori-check:checked'))
-                               .some(cb => /LAKA_PENYEBAB/i.test(cb.closest('.kategori-block').dataset.kategoriKode));
-      if (lakaPenyebab) {
-        const krono = document.querySelectorAll('[name="kronologi[]"]');
-        const hasContent = Array.from(krono).some(t => t.value.trim().length > 0);
-        if (!hasContent) {
-          alert('Kategori LAKA_PENYEBAB dipilih — kronologi wajib diisi minimal 1.');
-          return false;
-        }
       }
     }
     return true;

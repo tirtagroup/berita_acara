@@ -1,111 +1,269 @@
-# Workflow: PICA (Problem Identification & Corrective Action)
+# Workflow: PICA v2 (Problem Identification & Corrective Action)
 
 ## Tujuan
-Setelah masalah teridentifikasi (sering kali sebagai tindak lanjut BA), PICA dipakai untuk: (1) mencari **akar masalah** lewat pertanyaan investigatif, (2) menyusun **tindakan korektif** (corrective action), dan (3) menyusun **tindakan preventif** agar tidak terulang.
+Modul untuk **analisis akar masalah multi-participant** dengan Q&A forum-style. PICA bisa standalone atau tindak-lanjut BA. Pelaku **wajib** menjawab semua pertanyaan/pernyataan yang ditandai `wajib_jawab` sebelum PICA bisa diteruskan ke action planning & closed.
 
-## Role 🟡 ASUMSI
+> 📌 **Status doc**: Design plan v2. Implementasi terpisah dari modul PICA legacy (yang ada `Tr_PICA_Controller`). Modul baru akan parallel di path `/pica/v2/*`.
 
-| Role | Peran |
-|---|---|
-| **HRD / Supervisor** | Membuat PICA, assign ke karyawan terkait |
-| **Karyawan terkait** | Mengisi pertanyaan investigatif & action plan |
-| **Atasan / Reviewer** | Memberikan komentar, approve PICA |
+## Arsitektur HYBRID
 
-## Alur Utama 🟡 ASUMSI
+**Dua fase**:
 
-```
-[Masalah teridentifikasi — biasanya dari BA atau temuan operasional]
-    │
-    │ 1. HRD/SPV membuat PICA header
-    ▼
-┌────────────────────────────┐
-│ Tr_PICA_Emp_h              │
-│ Status_PICA: 'OPEN'        │  ──→ assign Emp_Code (karyawan)
-│ Problem_Note: deskripsi    │
-│ Kapan_Terjadi: timestamp   │
-└────────────────────────────┘
-    │
-    │ 2. Karyawan menjawab pertanyaan investigatif (Why 1..5)
-    ▼
-┌────────────────────────────┐
-│ Tr_PICA_Pertanyaan         │  (multi-row per PICA)
-└────────────────────────────┘
-    │
-    │ 3. Karyawan menyusun corrective action
-    ▼
-┌────────────────────────────┐
-│ Tr_PICA_Action             │  (PIC, deadline, status)
-└────────────────────────────┘
-    │
-    │ 4. Karyawan menyusun preventive action
-    ▼
-┌────────────────────────────┐
-│ Tr_PICA_Preventive_Action  │
-└────────────────────────────┘
-    │
-    │ 5. Atasan review & beri komentar
-    ▼
-┌────────────────────────────┐
-│ Tr_PICA_Comment            │  ──→ 'sudah dilihat' flag
-└────────────────────────────┘
-    │
-    │ 6. Approve → Status_PICA: 'CLOSED'
-    │    Reject  → Status_PICA: 'REVISI'
-    ▼
-[Done atau Loop ke step 2]
-```
+| Fase | Tabel | Tujuan |
+|---|---|---|
+| **Working / Discussion** | `tr_pica_pertanyaan_d` + `tr_pica_jawaban` | Multi-participant Q&A. Pelaku/PIC/dewan diskusi, jawab pertanyaan, kasih komentar. |
+| **Compiled Report** | `tr_pica_reports` + `tr_pica_report_why` + `tr_pica_report_action` | Output formal terstruktur, mengikuti standar investigasi (sections A-G). |
 
-## Status PICA (nilai di `Tr_PICA_Emp_h.Status_PICA`) 🟡 ASUMSI
+PIC compile jawaban dari Q&A ke dokumen final structured. Q&A boleh tetap berlangsung selagi compile.
 
-Perlu cek nilai aktual di DB produksi:
+### Sections Structured Report (A-G)
 
-| Status | Arti |
-|---|---|
-| `OPEN` | Baru dibuat, menunggu pengisian |
-| `IN_PROGRESS` | Karyawan sedang mengisi |
-| `REVIEW` | Menunggu approval atasan |
-| `REVISI` | Atasan minta perbaikan |
-| `CLOSED` | Selesai |
-
-## Tabel yang Ter-update
-
-Lihat detail kolom di [docs/tables/pica.md](../tables/pica.md).
-
-| Tabel | Operasi |
-|---|---|
-| `Tr_PICA_Emp_h` | INSERT (saat PICA dibuat) + UPDATE (perpindahan status) |
-| `Tr_Pica_Emp_D` | INSERT (detail per item, bila ada) |
-| `Tr_PICA_Pertanyaan` | INSERT (per jawaban investigatif) |
-| `Tr_PICA_Action` | INSERT/UPDATE (corrective action + status pelaksanaan) |
-| `Tr_PICA_Preventive_Action` | INSERT/UPDATE (preventive action) |
-| `Tr_PICA_Comment` | INSERT (komentar dari reviewer / "sudah dilihat" flag) |
-
-## Route & Controller
-
-Controller: `Tr_PICA_Controller`.
-
-Endpoint utama:
-- `GET /dashboard_pica` — dashboard (default 1 bulan terakhir, lihat [conventions.md](../conventions.md#1-default-date-range-untuk-filter))
-- `POST /search_report_pica` — filter per tanggal
-- `GET /detail_check_pica/{id}` — detail per kode PICA
-- `GET /reprint_pica/{id}` — cetak PDF
-
-## Generated Code (auto-number) 🟡 OBSERVED
-
-Kode PICA dibentuk: `Comment{weekOfYear}{tahun}{random3digit}` — generated di `Tr_PICA_Controller::detail_check_pica`.
-
-Format `Tr_Pica_Emp_h_Code` perlu dicek di kode `create_pica` (TODO trace).
-
-## Hubungan dengan BA
-
-PICA biasanya **dipicu** oleh BA yang sudah closed. Tracing link antara `Tr_Ba_Main_New` → `Tr_PICA_Emp_h` perlu dikonfirmasi (apakah ada `BA_Code` FK di header PICA?).
-
-## Edge Case 🟡 ASUMSI
-
-- **PICA tanpa BA**: bisa dibuat standalone untuk temuan operasional biasa?
-- **Multiple karyawan**: satu PICA bisa assign ke beberapa karyawan? Atau satu-per-satu?
-- **Deadline action**: ada reminder otomatis?
+| Section | Isi | Storage |
+|---|---|---|
+| A. Identification | 5W + 2H (What/When/Where/Who/Why awal/How/HowMuch) — text narrative per dimensi | Kolom inline di `tr_pica_reports` |
+| B. 4M + 1E Analysis | Narrative per faktor (Man/Machine/Material/Method/Environment) | Kolom inline di `tr_pica_reports` |
+| C. 5 Why | Dynamic rows (bisa lebih atau kurang dari 5). Tiap row: pertanyaan + jawaban | `tr_pica_report_why` (multi-row) |
+| D. Corrective Action | Multi-row: deskripsi, PIC, deadline, status | `tr_pica_report_action` (tipe=corrective) |
+| E. Preventive Action | Multi-row: deskripsi, PIC, deadline, status | `tr_pica_report_action` (tipe=preventive) |
+| F. Verification | KPI, review schedule, audit result | Kolom inline |
+| G. Closure | Approver, closure date, pelajaran, dokumentasi path | Kolom inline |
 
 ---
 
-> **Action item**: Tim HR/IT mohon konfirmasi nilai `Status_PICA`, alur trigger (BA → PICA), dan business rule lainnya.
+## Konsep Inti
+
+**Forum-style multi-participant** (working phase):
+- **PIC** = facilitator yang setup PICA (otomatis = user yang create)
+- **Pelaku** = subject masalah (1 orang, harus jawab semua wajib)
+- **Dewan** = member observer/contributor (banyak, bisa kasih komentar/pertanyaan tambahan)
+
+**Pertanyaan & Pernyataan**:
+- **Pertanyaan** (question) — pelaku menjawab dengan text
+- **Pernyataan** (statement) — pelaku ack: Setuju / Tidak Setuju + reasoning
+
+**Source pertanyaan**:
+- **Wajib Universal** — master pertanyaan yang auto-include di semua PICA
+- **Bantuan** — master library, PIC pilih saat setup
+- **Bebas** — diketik ad-hoc, bisa ditambah oleh:
+  - PIC saat setup wizard
+  - **Semua participant** (pelaku/PIC/dewan) selama fase discussion
+  - Tapi flag `wajib_jawab` hanya boleh di-toggle oleh **PIC** (karena affects close gate)
+- Setiap pertanyaan tercatat `created_by` (user_id) — track siapa yang nambah
+
+**Aturan close**:
+- PICA tidak bisa naik ke status `ACTION_PLANNING` sebelum semua pertanyaan/pernyataan `wajib_jawab` sudah dijawab pelaku.
+- PICA tidak bisa `CLOSED` sebelum action plan disusun & disetujui.
+
+---
+
+## Data Model
+
+### Master (baru)
+
+```
+ms_pica_kategori
+├── id, kode, nama, deskripsi
+└── active, timestamps
+
+ms_pica_pertanyaan_master
+├── id, kode, pertanyaan, urutan
+├── tipe: 'pertanyaan' | 'pernyataan'
+├── scope: 'wajib_universal' | 'bantuan'
+└── active, timestamps
+```
+
+### Header & Detail (extend existing)
+
+```
+Tr_PICA_Emp_h (existing — extend kolom)
+├── Tr_Pica_Emp_h_Code (PK), Emp_Code (pelaku)
+├── Problem_Note, Kapan_Terjadi
+├── Status_PICA: 'DRAFT' | 'WAITING_PELAKU' | 'ACTION_PLANNING' | 'CLOSED'
+├── ba_link_code (FK nullable ke Tr_Ba_Main_New)
+└── ...
+
+tr_pica_kategori_d (NEW pivot)
+├── tr_pica_main_code (FK)
+└── kategori_id (FK ms_pica_kategori)
+
+tr_pica_participants (NEW)
+├── tr_pica_main_code (FK)
+├── user_id (FK users)
+└── role: 'pelaku' | 'pic' | 'dewan'
+
+Tr_PICA_Pertanyaan (existing — extend)
+├── id, Tr_Pica_emp_h_Code (FK)
+├── pertanyaan_master_id (FK ms_pica_pertanyaan_master, nullable bila bebas)
+├── pertanyaan (text — salinan atau custom)
+├── tipe: 'pertanyaan' | 'pernyataan'
+├── wajib_jawab (bool)
+└── urutan
+
+tr_pica_jawaban (NEW — forum thread)
+├── id, pertanyaan_id (FK Tr_PICA_Pertanyaan)
+├── user_id (FK users)
+├── jawaban (text) atau ack ('setuju' | 'tidak_setuju') + reasoning
+├── is_final (bool — jawaban final dari pelaku)
+└── timestamp
+
+Tr_PICA_Action (existing) — corrective action
+Tr_PICA_Preventive_Action (existing) — preventive action
+Tr_PICA_Comment (existing) — comments
+```
+
+### Reuse
+
+- `ms_business_unit` (konteks LAKA/FNB/OP_HR/REVISI) — shared dengan BA v2.
+- `master_employees` (untuk pick pelaku, dewan).
+
+---
+
+## Workflow & Status
+
+```
+[PIC create wizard] 
+    │
+    ↓
+DRAFT
+    │ PIC selesai setup pertanyaan
+    ↓
+WAITING_PELAKU
+    │ Pelaku jawab semua wajib_jawab
+    │ Dewan/PIC bisa kasih komentar/tambah pertanyaan
+    ↓ (validasi: semua wajib_jawab terisi)
+ACTION_PLANNING
+    │ PIC + dewan susun corrective + preventive action
+    ↓
+CLOSED
+```
+
+---
+
+## Wizard Create PICA (6 step)
+
+```
+1.BU/Konteks  →  2.BA Link  →  3.Data Umum  →  4.Participants  →  5.Setup Q  →  6.Submit
+```
+
+| Step | Isi |
+|---|---|
+| 1. BU/Konteks | Pilih LAKA/FNB/OP_HR/REVISI (reuse `ms_business_unit`) |
+| 2. BA Link | Opsional: pilih BA induk (Select2 AJAX `/api/ba/search`) |
+| 3. Data Umum | Pelaku (Select2 emp), Tanggal, Problem note, Kategori PICA (multi-select) |
+| 4. Participants | PIC auto = creator. Pick Dewan members (multi-select karyawan) |
+| 5. Setup Q | Wajib universal auto-include (locked). Pick Bantuan (checklist dari master). Tambah Bebas (form). Per item: toggle `wajib_jawab` |
+| 6. Submit | Review & create. Status → WAITING_PELAKU. Redirect ke discussion page |
+
+---
+
+## Halaman PICA Discussion (post-create)
+
+URL: `/pica/v2/discussion?kode=X`
+
+Forum-style — semua participant bisa interact:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ PICA #PICA-XXX  | Status: WAITING_PELAKU                 │
+│ BA Induk: BA-XXX  |  Pelaku: Budi  PIC: Andi             │
+│ Dewan: Citra, Dewi                                       │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│ Q1 (WAJIB) — Mengapa terjadi?                           │
+│   ★ Pelaku (Budi): "Karena saya lupa cek SOP..."         │
+│   💬 PIC: "Kapan terakhir baca SOP?"                     │
+│   💬 Dewan (Citra): "Apakah SOP terbaru sudah ada?"      │
+│   [+ Tambah jawaban/komentar]                            │
+│                                                          │
+│ Pernyataan 1 (WAJIB) — Pelaku terbukti melanggar SOP    │
+│   ★ Pelaku (Budi): ○ Setuju  ● Tidak Setuju             │
+│     "Karena saya pikir SOP lama yang berlaku..."         │
+│   💬 PIC: "Kami akan cek versi SOP saat itu"             │
+│                                                          │
+│ Q2 (BEBAS, wajib_jawab) — Kondisi alat saat itu?         │
+│   [⏳ Menunggu pelaku jawab]                              │
+│                                                          │
+│ [Tambah pertanyaan baru ←PIC/Dewan]                      │
+│                                                          │
+│ Status Pelaku: 2/3 wajib_jawab terisi                   │
+│ [Lanjut ke Action Plan →]  (disabled bila belum lengkap)│
+└──────────────────────────────────────────────────────────┘
+```
+
+**Permission**:
+- Semua participant bisa **add comment** per pertanyaan
+- Semua participant bisa **add pertanyaan baru** (PIC mark `wajib_jawab` bila perlu)
+- Hanya **Pelaku** yang bisa `is_final=true` (jawaban akhir)
+- Hanya **PIC** yang bisa toggle status PICA ke next phase
+
+---
+
+## Halaman PICA Action
+
+URL: `/pica/v2/action?kode=X`
+
+Setelah status `ACTION_PLANNING`:
+- List corrective actions (PIC, deadline, status pelaksanaan)
+- List preventive actions
+- Tombol "Tutup PICA → CLOSED" (validate: ada minimal 1 action + 1 preventive)
+
+---
+
+## Admin Master
+
+| URL | Fungsi |
+|---|---|
+| `/master/pica/kategori` | CRUD ms_pica_kategori |
+| `/master/pica/pertanyaan` | CRUD ms_pica_pertanyaan_master (set tipe & scope) |
+
+Admin bisa atur:
+- Tipe: pertanyaan vs pernyataan
+- Scope: wajib_universal (auto di semua PICA) vs bantuan (PIC pilih)
+
+---
+
+## Dashboard PICA v2
+
+URL: `/pica/v2/dashboard` (mirip dashboard BA, 5-tab konteks).
+
+**Cards**: Total PICA per status (Draft/Waiting/Action/Closed)
+**Charts**:
+- Donut: PICA per konteks
+- Line: trend daily
+- Bar: top kategori PICA
+- Bar: top root cause (dari pertanyaan analysis)
+
+**Recent PICA table** dengan link ke detail.
+
+---
+
+## Integrasi BA v2 ↔ PICA v2
+
+Di **detail BA v2** (`/beritaacara/v2/show?kode=X`):
+- Tampilkan section "PICA terkait" — list PICA yang ba_link_code = BA kode ini
+- Tombol "[+ Buat PICA dari BA ini]" → redirect ke `/pica/v2/create?ba_code=X` (auto-fill step 2)
+
+Di **detail PICA**: tampilkan link balik ke BA induk (bila ada).
+
+---
+
+## Roadmap Implementasi
+
+| Fase | Scope | Effort |
+|---|---|---|
+| 1 | Migration (5 tabel baru) + master kategori PICA & pertanyaan + admin UI | Sedang (3-4 hari) |
+| 2 | Wizard create PICA (6-step) | Sedang (3 hari) |
+| 3 | Discussion page (forum Q&A) — utama | Besar (4-5 hari) |
+| 4 | Action page + close workflow | Sedang (2 hari) |
+| 5 | Dashboard + list + detail page | Sedang (2-3 hari) |
+| 6 | Integrasi BA-PICA + memberitahu participants (notifikasi) | Kecil (1-2 hari) |
+
+---
+
+## Aturan Domain (Project Memory)
+
+1. **PIC = creator** (self-assign saat create wizard).
+2. **PICA tidak bisa close** sebelum pelaku jawab semua pertanyaan/pernyataan `wajib_jawab`.
+3. **Pertanyaan wajib_universal** auto-include di semua PICA (tidak bisa dihapus oleh PIC).
+4. **Multi-participant Q&A**: semua boleh kasih komentar, tapi **jawaban final adalah dari pelaku** (flag `is_final`).
+5. **Dewan dipilih per-PICA** — bukan role global.

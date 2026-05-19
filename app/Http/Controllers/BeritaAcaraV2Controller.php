@@ -21,6 +21,320 @@ use Illuminate\Support\Facades\DB;
  */
 class BeritaAcaraV2Controller extends Controller
 {
+    /**
+     * Dashboard BA v2 — overview + per-konteks tabs.
+     */
+    public function dashboard(Request $request)
+    {
+        $tglAwal     = $request->input('tgl_awal',  Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $tglAkhir    = $request->input('tgl_akhir', Carbon::now()->format('Y-m-d'));
+        $kategoriId  = $request->input('kategori_id');
+        $perPage     = in_array((int) $request->input('per_page'), [10, 25, 50]) ? (int) $request->input('per_page') : 10;
+
+        $businessUnits = BusinessUnit::where('active', true)->orderBy('id')->get();
+        $kategoriList  = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
+
+        // Pre-compute data per slice (Overview = all, plus per konteks)
+        $slices = [];
+        $slices['ALL'] = $this->dashboardSlice($tglAwal, $tglAkhir, null, $kategoriId, $perPage);
+        foreach ($businessUnits as $bu) {
+            $slices[$bu->kode] = $this->dashboardSlice($tglAwal, $tglAkhir, $bu->kode, $kategoriId, $perPage);
+        }
+
+        // Payload chart per tab (di-iterate di JS)
+        $chartTabsData = [];
+        $chartTabsData[] = [
+            'tabId'       => 'overview',
+            'showAll'     => true,
+            'daily'       => $slices['ALL']['daily'],
+            'perKonteks'  => $slices['ALL']['perKonteks'],
+            'topKategori' => $slices['ALL']['topKategori'],
+            'perCabang'   => $slices['ALL']['perCabang'],
+        ];
+        foreach ($businessUnits as $bu) {
+            $s = $slices[$bu->kode];
+            $chartTabsData[] = [
+                'tabId'       => strtolower($bu->kode),
+                'showAll'     => false,
+                'daily'       => $s['daily'],
+                'perKonteks'  => $s['perKonteks'],
+                'topKategori' => $s['topKategori'],
+                'perCabang'   => $s['perCabang'],
+            ];
+        }
+
+        return view('berita_acara_v2.dashboard', compact(
+            'tglAwal', 'tglAkhir', 'kategoriId', 'perPage',
+            'businessUnits', 'kategoriList', 'slices', 'chartTabsData'
+        ));
+    }
+
+    /**
+     * Hitung statistik 1 slice (semua / per konteks).
+     */
+    private function dashboardSlice(string $from, string $to, ?string $konteksKode, $kategoriId = null, int $perPage = 10): array
+    {
+        $base = DB::table('Tr_Ba_Main_New as ba')
+                  ->whereBetween('ba.Date_BA', [$from, $to]);
+        if ($konteksKode) {
+            $base->where('ba.Ms_BA_type_Code', $konteksKode);
+        }
+        // Filter kategori (JOIN pivot bila diberikan)
+        if ($kategoriId) {
+            $base->whereExists(function ($q) use ($kategoriId) {
+                $q->select(DB::raw(1))
+                  ->from('tr_ba_kategori_d as d')
+                  ->whereColumn('d.tr_ba_main_code', 'ba.Tr_BA_Main_Code')
+                  ->where('d.kategori_id', $kategoriId);
+            });
+        }
+
+        // Total
+        $total = (clone $base)->count();
+
+        // Daily trend
+        $daily = (clone $base)
+            ->select(DB::raw('DATE(Date_BA) as tgl'), DB::raw('COUNT(*) as cnt'))
+            ->groupBy(DB::raw('DATE(Date_BA)'))
+            ->orderBy('tgl')
+            ->pluck('cnt', 'tgl');
+
+        // Per Konteks (only for ALL slice)
+        $perKonteks = collect();
+        if (!$konteksKode) {
+            $perKonteks = (clone $base)
+                ->select('ba.Ms_BA_type_Code as kode', DB::raw('COUNT(*) as cnt'))
+                ->groupBy('ba.Ms_BA_type_Code')
+                ->pluck('cnt', 'kode');
+        }
+
+        // Top kategori (via pivot baru)
+        $topKategori = DB::table('tr_ba_kategori_d as d')
+            ->join('ms_ba_kategori as k', 'd.kategori_id', '=', 'k.id')
+            ->join('Tr_Ba_Main_New as ba', 'd.tr_ba_main_code', '=', 'ba.Tr_BA_Main_Code')
+            ->whereBetween('ba.Date_BA', [$from, $to])
+            ->when($konteksKode, fn($q) => $q->where('ba.Ms_BA_type_Code', $konteksKode))
+            ->select('k.nama', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('k.nama')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->get();
+
+        // Per Cabang (rec_comcode → ms_company)
+        $perCabang = (clone $base)
+            ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
+            ->select(DB::raw('COALESCE(c.description, ba.rec_comcode) as cabang'), DB::raw('COUNT(*) as cnt'))
+            ->groupBy('cabang')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->get();
+
+        // Recent BA — JOIN master_employees untuk dapatkan nama pelaku
+        $recent = (clone $base)
+            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id')
+            ->select(
+                'ba.Tr_BA_Main_Code as kode',
+                'ba.Ms_BA_type_Code as konteks',
+                'ba.Date_BA',
+                'ba.Ms_Emp_Code as emp_code',
+                'me.emp_name as emp_name',
+                'ba.Ms_Pelapor_Code as pelapor',
+                'ba.BA_Desc as deskripsi'
+            )
+            ->orderByDesc('ba.rec_datecreated')
+            ->limit($perPage)
+            ->get();
+
+        return [
+            'total'       => $total,
+            'daily'       => $daily,
+            'perKonteks'  => $perKonteks,
+            'topKategori' => $topKategori,
+            'perCabang'   => $perCabang,
+            'recent'      => $recent,
+        ];
+    }
+
+    /**
+     * Detail BA — read-only view.
+     * URL: /beritaacara/v2/show?kode=BA-XXX
+     */
+    public function show(Request $request)
+    {
+        $kode = $request->query('kode');
+        if (!$kode) abort(404, 'Kode BA tidak diberikan');
+
+        $ba = DB::table('Tr_Ba_Main_New as ba')
+            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id')
+            ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
+            ->leftJoin('ms_lokasi as l', 'ba.rec_areacode', '=', 'l.lokasi_code')
+            ->where('ba.Tr_BA_Main_Code', $kode)
+            ->select(
+                'ba.*',
+                'me.emp_name',
+                'c.description as company_name',
+                'l.lokasi_desc as lokasi_name'
+            )
+            ->first();
+
+        if (!$ba) abort(404, "BA dengan kode {$kode} tidak ditemukan");
+
+        // Kategori yang attached
+        $kategoris = DB::table('tr_ba_kategori_d as d')
+            ->leftJoin('ms_ba_kategori as k', 'd.kategori_id', '=', 'k.id')
+            ->leftJoin('ms_ba_kategori_opsi as o', 'd.opsi_id', '=', 'o.id')
+            ->where('d.tr_ba_main_code', $kode)
+            ->select('k.kode as kategori_kode', 'k.nama as kategori_nama', 'o.deskripsi as opsi_deskripsi', 'd.created_at')
+            ->orderBy('k.nama')
+            ->get();
+
+        // Kronologi
+        $kronologi = DB::table('tr_ba_kronologi')
+            ->where('tr_ba_main_code', $kode)
+            ->orderBy('id')
+            ->get();
+
+        // Revisi (jika ada — konteks REVISI)
+        $requestRevisi = DB::table('tr_ba_request_revisi')
+            ->where('tr_ba_main_code', $kode)
+            ->first();
+
+        $revisiDetail = collect();
+        $revisiApproval = null;
+        if ($requestRevisi) {
+            $revisiDetail = DB::table('tr_ba_salah_isi_detail')
+                ->where('tr_ba_code_request', $requestRevisi->tr_ba_request_revisi_code)
+                ->orderBy('id')
+                ->get();
+            $revisiApproval = DB::table('Tr_BA_Revisi')
+                ->where('Tr_BA_Main_Code', $kode)
+                ->first();
+        }
+
+        return view('berita_acara_v2.show', compact(
+            'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval'
+        ));
+    }
+
+    /**
+     * List BA dengan filter (emp_code, pelapor, konteks, date).
+     * URL: /beritaacara/v2/list?emp_code=X | ?pelapor=Y | ?konteks=Z
+     */
+    public function list(Request $request)
+    {
+        $perPage = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 20;
+
+        $query = DB::table('Tr_Ba_Main_New as ba')
+            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id');
+
+        if ($request->filled('emp_code'))    $query->where('ba.Ms_Emp_Code', $request->emp_code);
+        if ($request->filled('pelapor'))     $query->where('ba.Ms_Pelapor_Code', $request->pelapor);
+        if ($request->filled('konteks'))     $query->where('ba.Ms_BA_type_Code', $request->konteks);
+        if ($request->filled('tgl_awal') && $request->filled('tgl_akhir')) {
+            $query->whereBetween('ba.Date_BA', [$request->tgl_awal, $request->tgl_akhir]);
+        }
+        if ($request->filled('kategori_id')) {
+            $query->whereExists(function ($q) use ($request) {
+                $q->select(DB::raw(1))
+                  ->from('tr_ba_kategori_d as d')
+                  ->whereColumn('d.tr_ba_main_code', 'ba.Tr_BA_Main_Code')
+                  ->where('d.kategori_id', $request->kategori_id);
+            });
+        }
+        if ($request->filled('opsi_id')) {
+            $query->whereExists(function ($q) use ($request) {
+                $q->select(DB::raw(1))
+                  ->from('tr_ba_kategori_d as d')
+                  ->whereColumn('d.tr_ba_main_code', 'ba.Tr_BA_Main_Code')
+                  ->where('d.opsi_id', $request->opsi_id);
+            });
+        }
+
+        $bas = $query
+            ->select(
+                'ba.Tr_BA_Main_Code as kode',
+                'ba.Ms_BA_type_Code as konteks',
+                'ba.Date_BA',
+                'ba.Ms_Emp_Code as emp_code',
+                'me.emp_name',
+                'ba.Ms_Pelapor_Code as pelapor',
+                'ba.BA_Desc as deskripsi',
+                'ba.rec_datecreated'
+            )
+            ->orderByDesc('ba.rec_datecreated')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $kategoriList = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
+
+        // Display kategori/opsi nama yang dipilih
+        $selectedKategori = null;
+        $selectedOpsi     = null;
+        if ($request->filled('kategori_id')) {
+            $selectedKategori = $kategoriList->firstWhere('id', $request->kategori_id);
+        }
+        if ($request->filled('opsi_id')) {
+            $selectedOpsi = \App\Models\BaKategoriOpsi::find($request->opsi_id);
+        }
+
+        // Header info filter aktif
+        $filterInfo = [];
+        if ($request->filled('emp_code'))    $filterInfo[] = "Pelaku: {$request->emp_code}";
+        if ($request->filled('pelapor'))     $filterInfo[] = "Pelapor: {$request->pelapor}";
+        if ($request->filled('konteks'))     $filterInfo[] = "Konteks: {$request->konteks}";
+        if ($selectedKategori)               $filterInfo[] = "Kategori: {$selectedKategori->nama}";
+        if ($selectedOpsi)                   $filterInfo[] = "Opsi: {$selectedOpsi->deskripsi}";
+
+        return view('berita_acara_v2.list', compact(
+            'bas', 'filterInfo', 'request', 'kategoriList', 'selectedOpsi', 'perPage'
+        ));
+    }
+
+    /**
+     * AJAX: search ms_kasus by code atau description (Select2 di wizard step 2).
+     */
+    public function searchKasus(Request $request)
+    {
+        $q = trim($request->input('q', ''));
+        if (strlen($q) < 2) return response()->json(['results' => []]);
+
+        $rows = DB::table('ms_kasus')
+                    ->where(function ($w) use ($q) {
+                        $w->where('ms_kasus_code', 'like', "%{$q}%")
+                          ->orWhere('description', 'like', "%{$q}%");
+                    })
+                    ->where('rec_status', 1)
+                    ->select('ms_kasus_code', 'description')
+                    ->orderBy('description')
+                    ->limit(50)
+                    ->get();
+
+        return response()->json([
+            'results' => $rows->map(fn($r) => [
+                'id'   => $r->ms_kasus_code,
+                'text' => "{$r->ms_kasus_code} — {$r->description}",
+            ]),
+        ]);
+    }
+
+    /**
+     * AJAX: search opsi by deskripsi (untuk Select2 di list page).
+     */
+    public function searchOpsi(Request $request)
+    {
+        $q = trim($request->input('q', ''));
+        if (strlen($q) < 2) return response()->json(['results' => []]);
+
+        $rows = \App\Models\BaKategoriOpsi::where('deskripsi', 'like', "%{$q}%")
+                    ->orderBy('deskripsi')
+                    ->limit(50)
+                    ->get(['id', 'deskripsi']);
+
+        return response()->json([
+            'results' => $rows->map(fn($o) => ['id' => $o->id, 'text' => $o->deskripsi]),
+        ]);
+    }
+
     public function create()
     {
         $businessUnits = BusinessUnit::where('active', true)->orderBy('id')->get();
@@ -156,6 +470,7 @@ class BeritaAcaraV2Controller extends Controller
             'company_code'       => ['nullable', 'string', 'max:50'],
             'emp_code'           => ['required', 'string', 'max:100'],
             'emp_div'            => ['nullable', 'string', 'max:100'],
+            'ms_kasus'           => ['nullable', 'string', 'max:100'],
             'deskripsi'          => ['required', 'string', 'max:500'],
             'kategori'           => ['required', 'array', 'min:1'],
             'kategori.*.id'      => ['required', 'integer', 'exists:ms_ba_kategori,id'],
@@ -204,7 +519,7 @@ class BeritaAcaraV2Controller extends Controller
                 'CekRevisi'         => 0, 'CekDisiplin'  => 0, 'CekSalahIsi'  => 0,
                 'CekNoClosing'      => 0, 'CekLaka'      => 0, 'CekPembelian' => 0,
                 'CekKehilangan'     => 0, 'CekPerubahanSOP' => 0,
-                'Ms_Kasus'          => '',
+                'Ms_Kasus'          => $request->ms_kasus ?? '',
                 'MS_Detail_Kasus'   => '',
                 'Tr_EmpPeriod_Code' => '',
                 'rec_usercreated'   => $user->username ?? 'system',

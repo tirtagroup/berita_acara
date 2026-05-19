@@ -30,7 +30,9 @@ use App\Http\Controllers\PDFController;
 use App\Http\Controllers\Master_MultiDetailKasus_Controller;
 use App\Http\Controllers\Tr_PICA_Controller;
 use App\Http\Controllers\MasterKategoriController;
+use App\Http\Controllers\MasterPicaController;
 use App\Http\Controllers\BeritaAcaraV2Controller;
+use App\Http\Controllers\PicaV2Controller;
 
 use Illuminate\Support\Facades\Auth;
 
@@ -766,11 +768,48 @@ Route::middleware('auth')->group(function () {
     });
 
     // ============================================================
+    // Master PICA v2 (kategori + pertanyaan)
+    // ============================================================
+    Route::prefix('master/pica')->name('master.pica.')->group(function () {
+        // Kategori PICA
+        Route::prefix('kategori')->name('kategori.')->group(function () {
+            Route::get('/',              [MasterPicaController::class, 'kategoriIndex'])->name('index');
+            Route::get('/create',        [MasterPicaController::class, 'kategoriCreate'])->name('create');
+            Route::post('/',             [MasterPicaController::class, 'kategoriStore'])->name('store');
+            Route::get('/{id}/edit',     [MasterPicaController::class, 'kategoriEdit'])->name('edit');
+            Route::put('/{id}',          [MasterPicaController::class, 'kategoriUpdate'])->name('update');
+            Route::patch('/{id}/toggle', [MasterPicaController::class, 'kategoriToggle'])->name('toggle');
+        });
+        // Pertanyaan master
+        Route::prefix('pertanyaan')->name('pertanyaan.')->group(function () {
+            Route::get('/',              [MasterPicaController::class, 'pertanyaanIndex'])->name('index');
+            Route::get('/create',        [MasterPicaController::class, 'pertanyaanCreate'])->name('create');
+            Route::post('/',             [MasterPicaController::class, 'pertanyaanStore'])->name('store');
+            Route::get('/{id}/edit',     [MasterPicaController::class, 'pertanyaanEdit'])->name('edit');
+            Route::put('/{id}',          [MasterPicaController::class, 'pertanyaanUpdate'])->name('update');
+            Route::patch('/{id}/toggle', [MasterPicaController::class, 'pertanyaanToggle'])->name('toggle');
+        });
+    });
+
+    // ============================================================
     // Berita Acara v2 — Wizard (Fase 3)
     // ============================================================
     Route::prefix('beritaacara/v2')->name('berita-acara-v2.')->group(function () {
-        Route::get('/create',  [BeritaAcaraV2Controller::class, 'create'])->name('create');
-        Route::post('/store',  [BeritaAcaraV2Controller::class, 'store'])->name('store');
+        Route::get('/dashboard', [BeritaAcaraV2Controller::class, 'dashboard'])->name('dashboard');
+        Route::get('/list',      [BeritaAcaraV2Controller::class, 'list'])->name('list');
+        Route::get('/show',      [BeritaAcaraV2Controller::class, 'show'])->name('show');
+        Route::get('/create',    [BeritaAcaraV2Controller::class, 'create'])->name('create');
+        Route::post('/store',    [BeritaAcaraV2Controller::class, 'store'])->name('store');
+    });
+
+    // ============================================================
+    // PICA v2 — Wizard (Fase 2)
+    // ============================================================
+    Route::prefix('pica/v2')->name('pica-v2.')->group(function () {
+        Route::get('/create',         [PicaV2Controller::class, 'create'])->name('create');
+        Route::post('/store',         [PicaV2Controller::class, 'store'])->name('store');
+        Route::get('/search-ba',      [PicaV2Controller::class, 'searchBa'])->name('search-ba');
+        Route::get('/search-users',   [PicaV2Controller::class, 'searchUsers'])->name('search-users');
     });
 
     // AJAX endpoint untuk wizard
@@ -778,6 +817,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/bu/{kode}/kategori',      [BeritaAcaraV2Controller::class, 'kategoriByBu']);
         Route::get('/kategori/{id}/opsi',      [BeritaAcaraV2Controller::class, 'opsiByKategori']);
         Route::get('/employees/search',        [BeritaAcaraV2Controller::class, 'searchEmployees']);
+        Route::get('/opsi/search',             [BeritaAcaraV2Controller::class, 'searchOpsi']);
+        Route::get('/kasus/search',            [BeritaAcaraV2Controller::class, 'searchKasus']);
     });
 
     // Opsi global (lintas kategori — list & create + detail/edit + attach/detach)
