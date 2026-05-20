@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Pivot BA × Kategori (+opsional opsi).
+ * Hard delete: row dihapus permanent saat user un-check kategori di edit form
+ * (decision domain: kategori_d = tag, aman dihapus tanpa audit row-level).
+ */
 class TrBaKategoriD extends Model
 {
     protected $table = 'tr_ba_kategori_d';

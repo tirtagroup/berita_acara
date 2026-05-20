@@ -49,6 +49,7 @@ class BeritaAcaraV2Controller extends Controller
             'daily'       => $slices['ALL']['daily'],
             'perKonteks'  => $slices['ALL']['perKonteks'],
             'topKategori' => $slices['ALL']['topKategori'],
+            'topOpsi'     => $slices['ALL']['topOpsi'],
             'perCabang'   => $slices['ALL']['perCabang'],
         ];
         foreach ($konteksList as $k) {
@@ -59,6 +60,7 @@ class BeritaAcaraV2Controller extends Controller
                 'daily'       => $s['daily'],
                 'perKonteks'  => $s['perKonteks'],
                 'topKategori' => $s['topKategori'],
+                'topOpsi'     => $s['topOpsi'],
                 'perCabang'   => $s['perCabang'],
             ];
         }
@@ -114,8 +116,21 @@ class BeritaAcaraV2Controller extends Controller
             ->join('Tr_Ba_Main_New as ba', 'd.tr_ba_main_code', '=', 'ba.Tr_BA_Main_Code')
             ->whereBetween('ba.Date_BA', [$from, $to])
             ->when($konteksKode, fn($q) => $q->where('ba.Ms_BA_type_Code', $konteksKode))
-            ->select('k.nama', DB::raw('COUNT(*) as cnt'))
+            ->select('k.nama', DB::raw('COUNT(DISTINCT d.tr_ba_main_code) as cnt'))
             ->groupBy('k.nama')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->get();
+
+        // Top opsi (deskripsi → COUNT BA)
+        $topOpsi = DB::table('tr_ba_kategori_d as d')
+            ->join('ms_ba_kategori_opsi as o', 'd.opsi_id', '=', 'o.id')
+            ->join('Tr_Ba_Main_New as ba', 'd.tr_ba_main_code', '=', 'ba.Tr_BA_Main_Code')
+            ->whereNotNull('d.opsi_id')
+            ->whereBetween('ba.Date_BA', [$from, $to])
+            ->when($konteksKode, fn($q) => $q->where('ba.Ms_BA_type_Code', $konteksKode))
+            ->select('o.deskripsi', DB::raw('COUNT(DISTINCT d.tr_ba_main_code) as cnt'))
+            ->groupBy('o.deskripsi')
             ->orderByDesc('cnt')
             ->limit(10)
             ->get();
@@ -150,6 +165,7 @@ class BeritaAcaraV2Controller extends Controller
             'daily'       => $daily,
             'perKonteks'  => $perKonteks,
             'topKategori' => $topKategori,
+            'topOpsi'     => $topOpsi,
             'perCabang'   => $perCabang,
             'recent'      => $recent,
         ];

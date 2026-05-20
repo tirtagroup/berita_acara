@@ -86,6 +86,18 @@
       </div>
     </div>
   </div>
+
+  <div class="col-lg-12 mb-3">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title m-0">Top 10 Opsi (deskripsi)</h5>
+        <small class="text-muted">Opsi yang paling sering muncul di BA pada rentang ini.</small>
+      </div>
+      <div class="card-body">
+        <div id="chart-opsi-{{ $tabId }}"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 {{-- Recent BA --}}

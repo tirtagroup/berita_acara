@@ -300,3 +300,18 @@ Menggunakan mapping dari `ms_cek_flag_mapping` (admin bisa edit via UI `/master/
 
 - `Tr_Ba_Main_New.edit_allowed BOOLEAN DEFAULT 0` (migration `2026_05_20_190000`) — admin toggle untuk izinkan creator edit BA.
 - Permission edit BA: admin role SELALU bisa edit; creator bisa edit bila `edit_allowed=true`.
+
+### Audit Trail Strategy
+
+Setelah diskusi domain: **`tr_ba_kategori_d` rows = tag (free-flow), aman di-hard-delete saat edit**. Tidak pakai soft delete.
+
+Untuk header BA (BA_Desc, Date_BA, kronologi): cukup `updated_at` di `Tr_Ba_Main_New`. Tidak ada audit table detail per-field.
+
+> Sempat dibuat migration soft-delete + revert (`2026_05_20_210000` + `220000`) yang akhirnya tidak dipakai — files sudah dihapus dari repo.
+
+### Indexes untuk Speed Query (migration `2026_05_20_230000`)
+
+- `Tr_Ba_Main_New.Ms_BA_type_Code` (idx_ba_konteks) — filter dashboard per konteks
+- `tr_ba_kategori_d.kategori_id` (FK index) — filter dashboard per kategori
+- `tr_ba_kategori_d.opsi_id` (FK index) — filter dashboard per opsi (top opsi chart)
+- `tr_ba_kategori_d.tr_ba_main_code` — existing index untuk JOIN ke BA header

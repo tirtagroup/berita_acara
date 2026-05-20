@@ -124,7 +124,7 @@
   });
 
   function renderSliceCharts(data) {
-    const { tabId, showAll, daily, perKonteks, topKategori, perCabang } = data;
+    const { tabId, showAll, daily, perKonteks, topKategori, topOpsi, perCabang } = data;
 
     // Donut Konteks (overview only)
     if (showAll) {
@@ -160,6 +160,23 @@
         xaxis: { categories: topKategori.map(k => k.nama) },
         plotOptions: { bar: { horizontal: false, borderRadius: 4 } },
       }).render();
+    } else if (elKat) {
+      elKat.innerHTML = '<div class="text-center text-muted py-5">Tidak ada data.</div>';
+    }
+
+    // Bar Top Opsi (horizontal — deskripsi opsi bisa panjang)
+    const elOpsi = document.getElementById('chart-opsi-' + tabId);
+    if (elOpsi && topOpsi && topOpsi.length > 0) {
+      new ApexCharts(elOpsi, {
+        chart: { type: 'bar', height: 320, toolbar: { show: false } },
+        series: [{ name: 'Jumlah BA', data: topOpsi.map(o => parseInt(o.cnt)) }],
+        xaxis: { categories: topOpsi.map(o => o.deskripsi) },
+        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+        colors: ['#71dd37'],
+        dataLabels: { enabled: true },
+      }).render();
+    } else if (elOpsi) {
+      elOpsi.innerHTML = '<div class="text-center text-muted py-4 small">Belum ada BA dengan opsi terpilih pada rentang ini.</div>';
     }
 
     // Bar Per Cabang (horizontal)
