@@ -18,6 +18,7 @@
     'WAITING_PELAKU'  => 'warning',
     'ACTION_PLANNING' => 'primary',
     'CLOSED'          => 'success',
+    'Belum Closing'   => 'dark',  // legacy
   ];
 @endphp
 
@@ -80,7 +81,7 @@
         </div>
       </div>
     </div>
-    @foreach (['PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED'] as $s)
+    @foreach (['PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'] as $s)
       @php $c = $stats['per_status'][$s] ?? 0; @endphp
       <div class="col-md col-6">
         <a href="{{ route('pica-v2.list', ['status' => [$s], 'tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'konteks_kode' => $konteksKode]) }}"
@@ -88,6 +89,9 @@
           <div class="card-body py-3 text-center">
             <small class="text-muted text-uppercase">{{ $s }}</small>
             <h3 class="mb-0 text-{{ $statusColor[$s] ?? 'secondary' }}">{{ $c }}</h3>
+            @if ($s === 'Belum Closing')
+              <small class="text-muted d-block">(legacy)</small>
+            @endif
           </div>
         </a>
       </div>

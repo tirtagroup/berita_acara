@@ -10,8 +10,9 @@
     'WAITING_PELAKU'  => 'warning',
     'ACTION_PLANNING' => 'primary',
     'CLOSED'          => 'success',
+    'Belum Closing'   => 'dark',  // legacy
   ];
-  $allStatuses = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED'];
+  $allStatuses = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
 @endphp
 
 <div class="container-xxl flex-grow-1 container-p-y">

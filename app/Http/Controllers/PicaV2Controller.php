@@ -1115,18 +1115,19 @@ class PicaV2Controller extends Controller
     {
         $base = fn() => $this->baseQuery($tglAwal, $tglAkhir, $konteksKode);
 
-        // Per status
+        // Per status — include legacy status "Belum Closing" untuk compat
         $statusRows = $base()
             ->select('h.Status_PICA', DB::raw('COUNT(*) as cnt'))
             ->groupBy('h.Status_PICA')
             ->get()->pluck('cnt', 'Status_PICA')->all();
 
-        $statuses = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED'];
+        $statuses = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
         $perStatus = [];
         foreach ($statuses as $s) {
             $perStatus[$s] = (int) ($statusRows[$s] ?? 0);
         }
-        $total = array_sum($perStatus);
+        // Total = ALL rows (termasuk status legacy lain yang tidak tercantum)
+        $total = $base()->count();
 
         // Per Konteks (kalau filter konteks aktif → hanya 1 konteks)
         $perKonteks = $base()

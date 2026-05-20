@@ -273,12 +273,13 @@ class BeritaAcaraV2Controller extends Controller
     }
 
     /**
-     * Helper: cek role admin/super_admin.
+     * Helper: cek role admin/super_admin/administrator.
+     * DB pakai "Administrator" — match case-insensitive.
      */
     protected function isAdmin(): bool
     {
         $role = strtolower(auth()->user()->role ?? '');
-        return in_array($role, ['admin', 'super_admin', 'superadmin'], true);
+        return in_array($role, ['admin', 'super_admin', 'superadmin', 'administrator'], true);
     }
 
     /**
