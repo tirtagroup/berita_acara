@@ -134,26 +134,25 @@
     </div>
   </div>
 
-  {{-- SECTION 3: Attach ke kategori baru --}}
-  {{-- SECTION 4: BU langsung di opsi (untuk filter wizard) --}}
+  {{-- SECTION 3: Konteks langsung di opsi (untuk filter wizard) --}}
   <div class="card mb-4">
     <div class="card-header bg-light">
-      <h5 class="card-title m-0">3. Business Unit Tag</h5>
-      <small class="text-muted">Tag BU langsung untuk opsi ini. Wizard menampilkan opsi hanya bila BU user match tag di sini.</small>
+      <h5 class="card-title m-0">3. Konteks Tag</h5>
+      <small class="text-muted">Tag Konteks langsung untuk opsi ini. Wizard menampilkan opsi hanya bila Konteks user match tag di sini.</small>
     </div>
     <div class="card-body">
-      @if ($opsi->businessUnits->count() === 0)
-        <p class="text-muted small">Belum tag BU. Opsi ini tidak akan muncul di wizard.</p>
+      @if ($opsi->konteksList->count() === 0)
+        <p class="text-muted small">Belum tag Konteks. Opsi ini tidak akan muncul di wizard.</p>
       @else
         <div class="d-flex flex-wrap gap-2 mb-3">
-          @foreach ($opsi->businessUnits as $bu)
+          @foreach ($opsi->konteksList as $k)
             <span class="badge bg-label-primary p-2">
-              <strong>{{ $bu->kode }}</strong> &mdash; {{ $bu->nama }}
-              <form action="{{ route('master.opsi.bu.detach', [$opsi->id, $bu->id]) }}" method="POST" class="d-inline">
+              <strong>{{ $k->kode }}</strong> &mdash; {{ $k->nama }}
+              <form action="{{ route('master.opsi.konteks.detach', [$opsi->id, $k->id]) }}" method="POST" class="d-inline">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-sm btn-link p-0 ms-2"
-                        onclick="return confirm('Detach BU {{ $bu->kode }} dari opsi ini?');"
+                        onclick="return confirm('Detach Konteks {{ $k->kode }} dari opsi ini?');"
                         title="Detach">
                   <i class="bx bx-x"></i>
                 </button>
@@ -163,25 +162,25 @@
         </div>
       @endif
 
-      @if ($availableBu->count() > 0)
-        <form action="{{ route('master.opsi.bu.attach', $opsi->id) }}" method="POST" class="row g-2 align-items-end">
+      @if ($availableKonteks->count() > 0)
+        <form action="{{ route('master.opsi.konteks.attach', $opsi->id) }}" method="POST" class="row g-2 align-items-end">
           @csrf
           <div class="col-md-9">
-            <label class="form-label">Tambah BU (multi)</label>
-            <select name="bu_ids[]" class="form-select select2-bu" multiple required>
-              @foreach ($availableBu as $bu)
-                <option value="{{ $bu->id }}">{{ $bu->kode }} &mdash; {{ $bu->nama }}</option>
+            <label class="form-label">Tambah Konteks (multi)</label>
+            <select name="konteks_ids[]" class="form-select select2-konteks" multiple required>
+              @foreach ($availableKonteks as $k)
+                <option value="{{ $k->id }}">{{ $k->kode }} &mdash; {{ $k->nama }}</option>
               @endforeach
             </select>
           </div>
           <div class="col-md-3">
             <button type="submit" class="btn btn-primary w-100">
-              <i class="bx bx-link"></i> Attach BU
+              <i class="bx bx-link"></i> Attach Konteks
             </button>
           </div>
         </form>
       @else
-        <small class="text-muted">Opsi ini sudah tag semua BU yang ada.</small>
+        <small class="text-muted">Opsi ini sudah tag semua Konteks yang ada.</small>
       @endif
     </div>
   </div>
@@ -234,7 +233,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof $.fn.select2 !== 'undefined') {
       $('.select2-attach').select2({ width: '100%' });
-      $('.select2-bu').select2({ width: '100%', placeholder: 'Pilih BU (multi)' });
+      $('.select2-konteks').select2({ width: '100%', placeholder: 'Pilih Konteks (multi)' });
     }
   });
 </script>

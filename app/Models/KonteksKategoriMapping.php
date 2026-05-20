@@ -5,12 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class BuKategoriMapping extends Model
+/**
+ * Pivot Konteks ↔ Kategori (sebelumnya BuKategoriMapping → ms_bu_kategori_mapping).
+ * Rename di migration 2026_05_20_180000.
+ */
+class KonteksKategoriMapping extends Model
 {
-    protected $table = 'ms_bu_kategori_mapping';
+    protected $table = 'ms_konteks_kategori_mapping';
 
     protected $fillable = [
-        'bu_id',
+        'konteks_id',
         'kategori_id',
         'level',
     ];
@@ -25,9 +29,9 @@ class BuKategoriMapping extends Model
         self::LEVEL_OPSIONAL,
     ];
 
-    public function businessUnit(): BelongsTo
+    public function konteks(): BelongsTo
     {
-        return $this->belongsTo(BusinessUnit::class, 'bu_id');
+        return $this->belongsTo(Konteks::class, 'konteks_id');
     }
 
     public function kategori(): BelongsTo

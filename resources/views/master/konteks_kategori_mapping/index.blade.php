@@ -1,12 +1,12 @@
 @extends('layouts/layoutMaster')
 
-@section('title', 'Mapping BU × Kategori')
+@section('title', 'Mapping Konteks × Kategori')
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 
   <h4 class="fw-bold py-3 mb-3">
-    <span class="text-muted fw-light">Master /</span> Mapping Business Unit × Kategori
+    <span class="text-muted fw-light">Master /</span> Mapping Konteks × Kategori
   </h4>
 
   <div class="alert alert-info">
@@ -23,30 +23,30 @@
         <thead class="table-light">
           <tr>
             <th>Kategori</th>
-            @foreach ($businessUnits as $bu)
+            @foreach ($konteksList as $k)
               <th class="text-center" style="min-width:140px">
-                {{ $bu->nama }}<br>
-                <small class="text-muted">{{ $bu->kode }}</small>
+                {{ $k->nama }}<br>
+                <small class="text-muted">{{ $k->kode }}</small>
               </th>
             @endforeach
           </tr>
         </thead>
         <tbody>
-          @foreach ($kategori as $k)
+          @foreach ($kategori as $kat)
             <tr>
               <td>
-                <strong>{{ $k->nama }}</strong><br>
-                <code class="small">{{ $k->kode }}</code>
+                <strong>{{ $kat->nama }}</strong><br>
+                <code class="small">{{ $kat->kode }}</code>
               </td>
-              @foreach ($businessUnits as $bu)
+              @foreach ($konteksList as $k)
                 @php
-                  $m = $mappings->get("{$bu->id}_{$k->id}");
+                  $m = $mappings->get("{$k->id}_{$kat->id}");
                   $level = $m?->level ?? 'none';
                 @endphp
                 <td class="text-center">
                   <select class="form-select form-select-sm mapping-level"
-                          data-bu="{{ $bu->id }}"
-                          data-kat="{{ $k->id }}">
+                          data-konteks="{{ $k->id }}"
+                          data-kat="{{ $kat->id }}">
                     <option value="none"       {{ $level === 'none'       ? 'selected' : '' }}>—</option>
                     <option value="wajib"      {{ $level === 'wajib'      ? 'selected' : '' }}>Wajib</option>
                     <option value="disarankan" {{ $level === 'disarankan' ? 'selected' : '' }}>Disarankan</option>
@@ -74,9 +74,9 @@
 
     document.querySelectorAll('.mapping-level').forEach(sel => {
       sel.addEventListener('change', async (e) => {
-        const buId  = e.target.dataset.bu;
-        const katId = e.target.dataset.kat;
-        const level = e.target.value;
+        const konteksId = e.target.dataset.konteks;
+        const katId     = e.target.dataset.kat;
+        const level     = e.target.value;
         status.textContent = 'Menyimpan...';
         status.className = 'text-info';
 
@@ -90,14 +90,14 @@
             },
             body: new URLSearchParams({
               _token: csrf,
-              bu_id: buId,
+              konteks_id: konteksId,
               kategori_id: katId,
               level: level,
             }),
           });
           const data = await res.json();
           if (data.ok) {
-            status.textContent = 'Tersimpan (' + data.action + ' BU=' + buId + ' Kat=' + katId + ').';
+            status.textContent = 'Tersimpan (' + data.action + ' Konteks=' + konteksId + ' Kat=' + katId + ').';
             status.className = 'text-success';
             e.target.classList.add('border-success');
             setTimeout(() => e.target.classList.remove('border-success'), 1500);

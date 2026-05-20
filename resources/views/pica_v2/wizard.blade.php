@@ -40,10 +40,10 @@
 
     <div class="bs-stepper wizard-numbered">
       <div class="bs-stepper-header">
-        <div class="step" data-target="#pica-step-bu">
+        <div class="step" data-target="#pica-step-konteks">
           <button type="button" class="step-trigger">
             <span class="bs-stepper-circle">1</span>
-            <span class="bs-stepper-label">BU/Konteks</span>
+            <span class="bs-stepper-label">Konteks</span>
           </button>
         </div>
         <div class="line"></div>
@@ -86,19 +86,19 @@
       <div class="bs-stepper-content">
 
         {{-- ============ STEP 1: BU/KONTEKS ============ --}}
-        <div id="pica-step-bu" class="content">
+        <div id="pica-step-konteks" class="content">
           <div class="content-header mb-3">
-            <h5 class="mb-0">Pilih Business Unit / Konteks PICA</h5>
+            <h5 class="mb-0">Pilih Konteks PICA</h5>
             <small>Konteks PICA — boleh standalone atau tindak-lanjut BA.</small>
           </div>
           <div class="row g-3">
-            @foreach ($businessUnits as $bu)
+            @foreach ($konteksList as $k)
               <div class="col-md-4">
-                <label class="card text-center p-4 h-100 bu-card" style="cursor:pointer">
-                  <input type="radio" name="bu_kode" value="{{ $bu->kode }}" class="d-none bu-radio" required>
-                  <h3 class="mb-1">{{ $bu->kode }}</h3>
-                  <h6 class="text-muted">{{ $bu->nama }}</h6>
-                  <small class="text-muted">{{ $bu->deskripsi }}</small>
+                <label class="card text-center p-4 h-100 konteks-card" style="cursor:pointer">
+                  <input type="radio" name="konteks_kode" value="{{ $k->kode }}" class="d-none konteks-radio" required>
+                  <h3 class="mb-1">{{ $k->kode }}</h3>
+                  <h6 class="text-muted">{{ $k->nama }}</h6>
+                  <small class="text-muted">{{ $k->deskripsi }}</small>
                 </label>
               </div>
             @endforeach
@@ -386,7 +386,7 @@
                   <strong>{{ auth()->user()->name ?? auth()->user()->username ?? '—' }}</strong>
                   <small class="text-muted">(otomatis = Anda)</small>
                 </dd>
-                <dt class="col-sm-3">Business Unit</dt><dd class="col-sm-9" id="rv-bu">—</dd>
+                <dt class="col-sm-3">Konteks</dt><dd class="col-sm-9" id="rv-konteks">—</dd>
                 <dt class="col-sm-3">BA Link</dt><dd class="col-sm-9" id="rv-balink">—</dd>
                 <dt class="col-sm-3">Pelaku</dt><dd class="col-sm-9" id="rv-pelaku">—</dd>
                 <dt class="col-sm-3">Tanggal PICA</dt><dd class="col-sm-9" id="rv-tanggal">—</dd>
@@ -418,9 +418,9 @@
 </div>
 
 <style>
-  .bu-card { transition: all .15s; border: 2px solid transparent; }
-  .bu-card:hover { background: #f5f5f5; }
-  .bu-card.selected { border-color: #696cff; background: #eef0ff; }
+  .konteks-card { transition: all .15s; border: 2px solid transparent; }
+  .konteks-card:hover { background: #f5f5f5; }
+  .konteks-card.selected { border-color: #696cff; background: #eef0ff; }
 </style>
 
 <script>
@@ -479,13 +479,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ===== BU radio card =====
-  document.querySelectorAll('.bu-card').forEach(card => {
+  // ===== Konteks radio card =====
+  document.querySelectorAll('.konteks-card').forEach(card => {
     card.addEventListener('click', function() {
-      document.querySelectorAll('.bu-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.konteks-card').forEach(c => c.classList.remove('selected'));
       this.classList.add('selected');
-      this.querySelector('.bu-radio').checked = true;
-      document.querySelector('#pica-step-bu .btn-next').disabled = false;
+      this.querySelector('.konteks-radio').checked = true;
+      document.querySelector('#pica-step-konteks .btn-next').disabled = false;
     });
   });
 
@@ -561,8 +561,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function buildReview() {
     const f = form;
-    const buRadio = f.querySelector('.bu-radio:checked');
-    document.getElementById('rv-bu').textContent = buRadio ? buRadio.value : '—';
+    const konteksRadio = f.querySelector('.konteks-radio:checked');
+    document.getElementById('rv-konteks').textContent = konteksRadio ? konteksRadio.value : '—';
 
     const balink = $('#ba-link-select').select2('data')[0];
     document.getElementById('rv-balink').textContent = balink && balink.id ? balink.text : '— (standalone)';

@@ -6,8 +6,8 @@ use App\Http\Requests\StoreKategoriRequest;
 use App\Http\Requests\StoreOpsiRequest;
 use App\Models\BaKategori;
 use App\Models\BaKategoriOpsi;
-use App\Models\BusinessUnit;
-use App\Models\BuKategoriMapping;
+use App\Models\Konteks;
+use App\Models\KonteksKategoriMapping;
 use App\Models\KategoriOpsiMapping;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
@@ -21,7 +21,7 @@ class MasterKategoriController extends Controller
 
     public function index()
     {
-        $kategori = BaKategori::with(['parent', 'businessUnits'])->orderBy('nama')->get();
+        $kategori = BaKategori::with(['parent', 'konteksList'])->orderBy('nama')->get();
         return view('master.kategori.index', compact('kategori'));
     }
 
@@ -44,17 +44,17 @@ class MasterKategoriController extends Controller
 
     public function edit($id)
     {
-        $kategori = BaKategori::with('businessUnits')->findOrFail($id);
+        $kategori = BaKategori::with('konteksList')->findOrFail($id);
         $parentOptions = BaKategori::where('id', '!=', $id)->orderBy('nama')->get();
-        $attachedBuIds = $kategori->businessUnits->pluck('id')->all();
-        $availableBu   = BusinessUnit::whereNotIn('id', $attachedBuIds)->orderBy('id')->get();
+        $attachedKonteksIds = $kategori->konteksList->pluck('id')->all();
+        $availableKonteks   = Konteks::whereNotIn('id', $attachedKonteksIds)->orderBy('id')->get();
 
         return view('master.kategori.form', [
             'mode'          => 'edit',
             'kategori'      => $kategori,
             'parentOptions' => $parentOptions,
-            'availableBu'   => $availableBu,
-            'allLevels'     => BuKategoriMapping::LEVELS,
+            'availableKonteks'   => $availableKonteks,
+            'allLevels'     => KonteksKategoriMapping::LEVELS,
         ]);
     }
 
@@ -79,12 +79,12 @@ class MasterKategoriController extends Controller
     public function kategoriBuUpsert(Request $request, $id)
     {
         $request->validate([
-            'bu_id' => ['required', 'integer', 'exists:ms_business_unit,id'],
+            'konteks_id' => ['required', 'integer', 'exists:ms_konteks,id'],
             'level' => ['required', 'string', 'in:wajib,disarankan,opsional'],
         ]);
 
-        BuKategoriMapping::updateOrCreate(
-            ['bu_id' => $request->bu_id, 'kategori_id' => $id],
+        KonteksKategoriMapping::updateOrCreate(
+            ['konteks_id' => $request->konteks_id, 'kategori_id' => $id],
             ['level' => $request->level]
         );
 
@@ -94,12 +94,12 @@ class MasterKategoriController extends Controller
     /**
      * Detach 1 BU dari kategori.
      */
-    public function kategoriBuDetach($id, $buId)
+    public function kategoriBuDetach($id, $konteksId)
     {
-        BuKategoriMapping::where('kategori_id', $id)
-                         ->where('bu_id', $buId)
+        KonteksKategoriMapping::where('kategori_id', $id)
+                         ->where('konteks_id', $konteksId)
                          ->delete();
-        return back()->with('success', 'BU di-detach dari kategori.');
+        return back()->with('success', 'Konteks di-detach dari kategori.');
     }
 
     // ============================================================
@@ -216,31 +216,31 @@ class MasterKategoriController extends Controller
 
     public function mappingMatrix()
     {
-        $businessUnits = BusinessUnit::orderBy('id')->get();
+        $konteksList = Konteks::orderBy('id')->get();
         $kategori      = BaKategori::orderBy('nama')->get();
-        $mappings      = BuKategoriMapping::all()
-                            ->keyBy(fn($m) => "{$m->bu_id}_{$m->kategori_id}");
+        $mappings      = KonteksKategoriMapping::all()
+                            ->keyBy(fn($m) => "{$m->konteks_id}_{$m->kategori_id}");
 
-        return view('master.bu_kategori_mapping.index', compact('businessUnits', 'kategori', 'mappings'));
+        return view('master.konteks_kategori_mapping.index', compact('konteksList', 'kategori', 'mappings'));
     }
 
     public function mappingUpdate(Request $request)
     {
         $request->validate([
-            'bu_id'        => ['required', 'integer', 'exists:ms_business_unit,id'],
+            'konteks_id'        => ['required', 'integer', 'exists:ms_konteks,id'],
             'kategori_id'  => ['required', 'integer', 'exists:ms_ba_kategori,id'],
             'level'        => ['required', 'string', 'in:wajib,disarankan,opsional,none'],
         ]);
 
         if ($request->level === 'none') {
-            BuKategoriMapping::where('bu_id', $request->bu_id)
+            KonteksKategoriMapping::where('konteks_id', $request->konteks_id)
                 ->where('kategori_id', $request->kategori_id)
                 ->delete();
             return response()->json(['ok' => true, 'action' => 'deleted']);
         }
 
-        BuKategoriMapping::updateOrCreate(
-            ['bu_id' => $request->bu_id, 'kategori_id' => $request->kategori_id],
+        KonteksKategoriMapping::updateOrCreate(
+            ['konteks_id' => $request->konteks_id, 'kategori_id' => $request->kategori_id],
             ['level' => $request->level]
         );
 
@@ -256,7 +256,7 @@ class MasterKategoriController extends Controller
         $kategoriList = BaKategori::orderBy('nama')->get();
 
         // Eager load kategori parents + BU mapping untuk display badge
-        $query = BaKategoriOpsi::with(['kategoris.businessUnits'])->orderBy('deskripsi');
+        $query = BaKategoriOpsi::with(['kategoris.konteksList'])->orderBy('deskripsi');
 
         if ($request->filled('kategori_id')) {
             $query->whereHas('kategoris', fn($q) => $q->where('ms_ba_kategori.id', $request->kategori_id));
@@ -281,14 +281,14 @@ class MasterKategoriController extends Controller
     {
         $opsi = BaKategoriOpsi::with([
                     'kategoris' => fn($q) => $q->orderBy('nama'),
-                    'businessUnits',
+                    'konteksList',
                 ])->findOrFail($id);
         $attachedIds   = $opsi->kategoris->pluck('id')->all();
         $availableKat  = BaKategori::whereNotIn('id', $attachedIds)->orderBy('nama')->get();
-        $attachedBuIds = $opsi->businessUnits->pluck('id')->all();
-        $availableBu   = BusinessUnit::whereNotIn('id', $attachedBuIds)->orderBy('id')->get();
+        $attachedKonteksIds = $opsi->konteksList->pluck('id')->all();
+        $availableKonteks   = Konteks::whereNotIn('id', $attachedKonteksIds)->orderBy('id')->get();
 
-        return view('master.opsi_global.edit', compact('opsi', 'availableKat', 'availableBu'));
+        return view('master.opsi_global.edit', compact('opsi', 'availableKat', 'availableKonteks'));
     }
 
     /**
@@ -297,26 +297,26 @@ class MasterKategoriController extends Controller
     public function opsiAttachBu(Request $request, $id)
     {
         $request->validate([
-            'bu_ids'   => ['required', 'array', 'min:1'],
-            'bu_ids.*' => ['integer', 'exists:ms_business_unit,id'],
+            'konteks_ids'   => ['required', 'array', 'min:1'],
+            'konteks_ids.*' => ['integer', 'exists:ms_konteks,id'],
         ]);
 
         $opsi = BaKategoriOpsi::findOrFail($id);
-        $existing = $opsi->businessUnits()->pluck('ms_business_unit.id')->all();
-        $toAttach = array_diff($request->bu_ids, $existing);
-        $opsi->businessUnits()->attach($toAttach);
+        $existing = $opsi->konteksList()->pluck('ms_konteks.id')->all();
+        $toAttach = array_diff($request->konteks_ids, $existing);
+        $opsi->konteksList()->attach($toAttach);
 
-        return back()->with('success', count($toAttach) . ' BU di-attach ke opsi ini.');
+        return back()->with('success', count($toAttach) . ' Konteks di-attach ke opsi ini.');
     }
 
     /**
-     * Detach 1 BU dari opsi.
+     * Detach 1 Konteks dari opsi.
      */
-    public function opsiDetachBu($opsiId, $buId)
+    public function opsiDetachBu($opsiId, $konteksId)
     {
         $opsi = BaKategoriOpsi::findOrFail($opsiId);
-        $opsi->businessUnits()->detach($buId);
-        return back()->with('success', 'BU di-detach dari opsi ini.');
+        $opsi->konteksList()->detach($konteksId);
+        return back()->with('success', 'Konteks di-detach dari opsi ini.');
     }
 
     /**

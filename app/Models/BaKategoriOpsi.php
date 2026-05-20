@@ -33,15 +33,15 @@ class BaKategoriOpsi extends Model
     }
 
     /**
-     * BU yang attach langsung ke opsi ini (untuk filter di wizard).
+     * Konteks yang attach langsung ke opsi ini (untuk filter di wizard).
      */
-    public function businessUnits(): BelongsToMany
+    public function konteksList(): BelongsToMany
     {
         return $this->belongsToMany(
-            BusinessUnit::class,
-            'ms_opsi_bu_mapping',
+            Konteks::class,
+            'ms_opsi_konteks_mapping',
             'opsi_id',
-            'bu_id'
+            'konteks_id'
         )->withTimestamps();
     }
 }

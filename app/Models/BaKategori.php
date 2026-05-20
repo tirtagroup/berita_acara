@@ -48,13 +48,13 @@ class BaKategori extends Model
          ->orderBy('ms_kategori_opsi_mapping.sort_order');
     }
 
-    public function businessUnits(): BelongsToMany
+    public function konteksList(): BelongsToMany
     {
         return $this->belongsToMany(
-            BusinessUnit::class,
-            'ms_bu_kategori_mapping',
+            Konteks::class,
+            'ms_konteks_kategori_mapping',
             'kategori_id',
-            'bu_id'
+            'konteks_id'
         )->withPivot('level')->withTimestamps();
     }
 

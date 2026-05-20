@@ -50,12 +50,12 @@
           <input type="date" name="tgl_akhir" class="form-control" value="{{ $tglAkhir }}">
         </div>
         <div class="col-md-3">
-          <label class="form-label">Business Unit / Konteks</label>
-          <select name="bu_kode" class="form-select">
-            <option value="">— Semua BU —</option>
-            @foreach ($businessUnits as $bu)
-              <option value="{{ $bu->kode }}" {{ $buKode === $bu->kode ? 'selected' : '' }}>
-                {{ $bu->kode }} — {{ $bu->nama }}
+          <label class="form-label">Konteks</label>
+          <select name="konteks_kode" class="form-select">
+            <option value="">— Semua Konteks —</option>
+            @foreach ($konteksList as $k)
+              <option value="{{ $k->kode }}" {{ $konteksKode === $k->kode ? 'selected' : '' }}>
+                {{ $k->kode }} — {{ $k->nama }}
               </option>
             @endforeach
           </select>
@@ -83,7 +83,7 @@
     @foreach (['PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED'] as $s)
       @php $c = $stats['per_status'][$s] ?? 0; @endphp
       <div class="col-md col-6">
-        <a href="{{ route('pica-v2.list', ['status' => [$s], 'tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'bu_kode' => $buKode]) }}"
+        <a href="{{ route('pica-v2.list', ['status' => [$s], 'tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'konteks_kode' => $konteksKode]) }}"
            class="card text-decoration-none">
           <div class="card-body py-3 text-center">
             <small class="text-muted text-uppercase">{{ $s }}</small>
@@ -103,11 +103,11 @@
         <div class="card-body"><div id="chart-status"></div></div>
       </div>
     </div>
-    {{-- Donut per BU --}}
+    {{-- Donut per Konteks --}}
     <div class="col-md-4">
       <div class="card h-100">
-        <div class="card-header"><strong>PICA per Business Unit</strong></div>
-        <div class="card-body"><div id="chart-bu"></div></div>
+        <div class="card-header"><strong>PICA per Konteks</strong></div>
+        <div class="card-body"><div id="chart-konteks"></div></div>
       </div>
     </div>
     {{-- Bar per kategori --}}
@@ -133,7 +133,7 @@
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <strong>10 PICA Terakhir</strong>
-      <a href="{{ route('pica-v2.list', ['tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'bu_kode' => $buKode]) }}"
+      <a href="{{ route('pica-v2.list', ['tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'konteks_kode' => $konteksKode]) }}"
          class="btn btn-sm btn-outline-primary">Lihat semua →</a>
     </div>
     <div class="card-body p-0">
@@ -144,7 +144,7 @@
               <th>Kode</th>
               <th>Tanggal</th>
               <th>Status</th>
-              <th>BU</th>
+              <th>Konteks</th>
               <th>Pelaku</th>
               <th>Problem</th>
               <th>Kategori</th>
@@ -165,7 +165,7 @@
                     {{ $r->Status_PICA }}
                   </span>
                 </td>
-                <td><small>{{ $r->bu_kode ?? '—' }}</small></td>
+                <td><small>{{ $r->konteks_kode ?? '—' }}</small></td>
                 <td>
                   <a href="{{ route('pica-v2.list', ['pelaku' => $r->Emp_Code]) }}">
                     {{ $r->pelaku_name }}
@@ -220,17 +220,17 @@ document.addEventListener('DOMContentLoaded', function () {
     elStatus.innerHTML = '<div class="text-center text-muted py-5">Tidak ada data.</div>';
   }
 
-  // Donut: BU
-  const elBu = document.getElementById('chart-bu');
-  if (elBu && stats.per_bu.length > 0) {
-    new ApexCharts(elBu, {
+  // Donut: Konteks
+  const elKonteks = document.getElementById('chart-konteks');
+  if (elKonteks && stats.per_konteks.length > 0) {
+    new ApexCharts(elKonteks, {
       chart: { type: 'donut', height: 280 },
-      labels: stats.per_bu.map(r => r.bu),
-      series: stats.per_bu.map(r => r.cnt),
+      labels: stats.per_konteks.map(r => r.konteks),
+      series: stats.per_konteks.map(r => r.cnt),
       legend: { position: 'bottom' },
     }).render();
-  } else if (elBu) {
-    elBu.innerHTML = '<div class="text-center text-muted py-5">Tidak ada data.</div>';
+  } else if (elKonteks) {
+    elKonteks.innerHTML = '<div class="text-center text-muted py-5">Tidak ada data.</div>';
   }
 
   // Bar: kategori

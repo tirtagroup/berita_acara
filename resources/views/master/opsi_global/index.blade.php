@@ -75,7 +75,7 @@
             <thead>
               <tr>
                 <th>Deskripsi</th>
-                <th>Kategori (Parent) → BU</th>
+                <th>Kategori (Parent) → Konteks</th>
                 <th width="80">Status</th>
                 <th width="80">Aksi</th>
               </tr>
@@ -93,10 +93,10 @@
                           {{ $k->nama }}
                           <small>({{ $k->pivot->kode }})</small>
                         </a>
-                        @if ($k->businessUnits->count() > 0)
+                        @if ($k->konteksList->count() > 0)
                           <small class="ms-1 text-muted">
-                            @foreach ($k->businessUnits as $bu)
-                              <span title="{{ $bu->nama }} — {{ $bu->pivot->level }}">{{ $bu->kode }}</span>{{ !$loop->last ? ', ' : '' }}
+                            @foreach ($k->konteksList as $kn)
+                              <span title="{{ $kn->nama }} — {{ $kn->pivot->level }}">{{ $kn->kode }}</span>{{ !$loop->last ? ', ' : '' }}
                             @endforeach
                           </small>
                         @endif

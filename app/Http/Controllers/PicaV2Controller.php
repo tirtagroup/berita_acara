@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BusinessUnit;
+use App\Models\Konteks;
 use App\Models\PicaKategori;
 use App\Models\PicaPertanyaanMaster;
 use Carbon\Carbon;
@@ -19,7 +19,7 @@ class PicaV2Controller extends Controller
 {
     public function create(Request $request)
     {
-        $businessUnits = BusinessUnit::where('active', true)->orderBy('id')->get();
+        $konteksList = Konteks::where('active', true)->orderBy('id')->get();
         $kategoriList  = PicaKategori::where('active', true)->orderBy('nama')->get();
         $wajibList     = PicaPertanyaanMaster::where('active', true)
                             ->where('scope', PicaPertanyaanMaster::SCOPE_WAJIB)
@@ -34,7 +34,7 @@ class PicaV2Controller extends Controller
         $baCodePrefill = $request->query('ba_code');
 
         return view('pica_v2.wizard', compact(
-            'businessUnits', 'kategoriList', 'wajibList', 'bantuanList',
+            'konteksList', 'kategoriList', 'wajibList', 'bantuanList',
             'company', 'lokasi', 'baCodePrefill'
         ));
     }
@@ -91,7 +91,7 @@ class PicaV2Controller extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'bu_kode'             => ['required', 'string', 'exists:ms_business_unit,kode'],
+            'konteks_kode'             => ['required', 'string', 'exists:ms_konteks,kode'],
             'ba_link_code'        => ['nullable', 'string', 'max:100'],
             'pelaku_emp_code'     => ['required', 'string', 'max:100'],
             'tanggal'             => ['required', 'date'],
@@ -122,12 +122,12 @@ class PicaV2Controller extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. Insert Tr_PICA_Emp_h (legacy + bu_kode kolom baru)
+            // 1. Insert Tr_PICA_Emp_h (legacy + konteks_kode kolom baru)
             DB::table('Tr_PICA_Emp_h')->insert([
                 'Tr_Pica_Emp_h_Code'           => $picaCode,
                 'Emp_Code'                     => $request->pelaku_emp_code,
                 'NoBA'                         => $request->ba_link_code,
-                'bu_kode'                      => $request->bu_kode,
+                'konteks_kode'                      => $request->konteks_kode,
                 'Date_PICA'                    => $now,
                 'Problem_Note'                 => $request->problem_note,
                 'Kapan_Terjadi'                => $request->kapan_terjadi,
@@ -938,15 +938,15 @@ class PicaV2Controller extends Controller
      */
     public function dashboard(Request $request)
     {
-        [$tglAwal, $tglAkhir, $buKode] = $this->parseFilters($request);
+        [$tglAwal, $tglAkhir, $konteksKode] = $this->parseFilters($request);
 
-        $businessUnits = BusinessUnit::where('active', true)->orderBy('id')->get();
+        $konteksList = Konteks::where('active', true)->orderBy('id')->get();
         $kategoriList  = PicaKategori::where('active', true)->orderBy('nama')->get();
 
-        $stats = $this->computeStats($tglAwal, $tglAkhir, $buKode);
+        $stats = $this->computeStats($tglAwal, $tglAkhir, $konteksKode);
 
         // Recent 10 PICA
-        $recent = $this->baseQuery($tglAwal, $tglAkhir, $buKode)
+        $recent = $this->baseQuery($tglAwal, $tglAkhir, $konteksKode)
             ->orderByDesc('h.Date_PICA')
             ->limit(10)
             ->get($this->baseColumns());
@@ -956,7 +956,7 @@ class PicaV2Controller extends Controller
 
         return view('pica_v2.dashboard', compact(
             'tglAwal', 'tglAkhir', 'buKode',
-            'businessUnits', 'kategoriList', 'stats', 'recent'
+            'konteksList', 'kategoriList', 'stats', 'recent'
         ));
     }
 
@@ -965,8 +965,8 @@ class PicaV2Controller extends Controller
      */
     public function dashboardData(Request $request)
     {
-        [$tglAwal, $tglAkhir, $buKode] = $this->parseFilters($request);
-        return response()->json($this->computeStats($tglAwal, $tglAkhir, $buKode));
+        [$tglAwal, $tglAkhir, $konteksKode] = $this->parseFilters($request);
+        return response()->json($this->computeStats($tglAwal, $tglAkhir, $konteksKode));
     }
 
     /**
@@ -974,13 +974,13 @@ class PicaV2Controller extends Controller
      */
     public function list(Request $request)
     {
-        [$tglAwal, $tglAkhir, $buKode] = $this->parseFilters($request);
+        [$tglAwal, $tglAkhir, $konteksKode] = $this->parseFilters($request);
         $status      = (array) $request->input('status', []);
         $kategoriIds = (array) $request->input('kategori_ids', []);
         $pelakuQ     = trim($request->input('pelaku', ''));
         $perPage     = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 25;
 
-        $q = $this->baseQuery($tglAwal, $tglAkhir, $buKode);
+        $q = $this->baseQuery($tglAwal, $tglAkhir, $konteksKode);
 
         if (!empty($status)) {
             $q->whereIn('h.Status_PICA', $status);
@@ -1011,36 +1011,36 @@ class PicaV2Controller extends Controller
 
         $this->enrichRecent($rows);
 
-        $businessUnits = BusinessUnit::where('active', true)->orderBy('id')->get();
+        $konteksList = Konteks::where('active', true)->orderBy('id')->get();
         $kategoriList  = PicaKategori::where('active', true)->orderBy('nama')->get();
 
         return view('pica_v2.list', compact(
             'rows', 'tglAwal', 'tglAkhir', 'buKode',
             'status', 'kategoriIds', 'pelakuQ', 'perPage',
-            'businessUnits', 'kategoriList'
+            'konteksList', 'kategoriList'
         ));
     }
 
     /**
-     * Helper: parse filter umum (tgl_awal, tgl_akhir, bu_kode).
+     * Helper: parse filter umum (tgl_awal, tgl_akhir, konteks_kode).
      */
     protected function parseFilters(Request $request): array
     {
         $tglAwal  = $request->input('tgl_awal',  Carbon::now()->startOfMonth()->format('Y-m-d'));
         $tglAkhir = $request->input('tgl_akhir', Carbon::now()->format('Y-m-d'));
-        $buKode   = $request->input('bu_kode');
-        return [$tglAwal, $tglAkhir, $buKode];
+        $konteksKode   = $request->input('konteks_kode');
+        return [$tglAwal, $tglAkhir, $konteksKode];
     }
 
     /**
      * Base query PICA list dengan filter date+BU diterapkan.
      */
-    protected function baseQuery(string $tglAwal, string $tglAkhir, ?string $buKode)
+    protected function baseQuery(string $tglAwal, string $tglAkhir, ?string $konteksKode)
     {
         $q = DB::table('Tr_PICA_Emp_h as h')
             ->whereBetween('h.Date_PICA', [$tglAwal . ' 00:00:00', $tglAkhir . ' 23:59:59']);
-        if (!empty($buKode)) {
-            $q->where('h.bu_kode', $buKode);
+        if (!empty($konteksKode)) {
+            $q->where('h.konteks_kode', $konteksKode);
         }
         return $q;
     }
@@ -1049,7 +1049,7 @@ class PicaV2Controller extends Controller
     {
         return [
             'h.Tr_Pica_Emp_h_Code', 'h.Date_PICA', 'h.Status_PICA',
-            'h.bu_kode', 'h.NoBA', 'h.Emp_Code', 'h.Problem_Note',
+            'h.konteks_kode', 'h.NoBA', 'h.Emp_Code', 'h.Problem_Note',
             'h.User_Created', 'h.Ms_Company', 'h.Ms_Location',
         ];
     }
@@ -1111,9 +1111,9 @@ class PicaV2Controller extends Controller
     /**
      * Compute semua stats dashboard: status count, per BU, per kategori, trend daily.
      */
-    protected function computeStats(string $tglAwal, string $tglAkhir, ?string $buKode): array
+    protected function computeStats(string $tglAwal, string $tglAkhir, ?string $konteksKode): array
     {
-        $base = fn() => $this->baseQuery($tglAwal, $tglAkhir, $buKode);
+        $base = fn() => $this->baseQuery($tglAwal, $tglAkhir, $konteksKode);
 
         // Per status
         $statusRows = $base()
@@ -1128,20 +1128,20 @@ class PicaV2Controller extends Controller
         }
         $total = array_sum($perStatus);
 
-        // Per BU (kalau filter BU aktif → hanya 1 BU)
-        $perBu = $base()
-            ->select(DB::raw("COALESCE(NULLIF(h.bu_kode, ''), 'UNKNOWN') as bu"), DB::raw('COUNT(*) as cnt'))
-            ->groupBy('bu')
+        // Per Konteks (kalau filter konteks aktif → hanya 1 konteks)
+        $perKonteks = $base()
+            ->select(DB::raw("COALESCE(NULLIF(h.konteks_kode, ''), 'UNKNOWN') as konteks"), DB::raw('COUNT(*) as cnt'))
+            ->groupBy('konteks')
             ->orderByDesc('cnt')
-            ->get()->map(fn($r) => ['bu' => $r->bu, 'cnt' => (int) $r->cnt])->all();
+            ->get()->map(fn($r) => ['konteks' => $r->konteks, 'cnt' => (int) $r->cnt])->all();
 
         // Per kategori (top 10)
         $perKategoriRaw = DB::table('tr_pica_kategori_d as kd')
             ->join('ms_pica_kategori as k', 'k.id', '=', 'kd.kategori_id')
             ->join('Tr_PICA_Emp_h as h', 'h.Tr_Pica_Emp_h_Code', '=', 'kd.tr_pica_main_code')
             ->whereBetween('h.Date_PICA', [$tglAwal . ' 00:00:00', $tglAkhir . ' 23:59:59']);
-        if (!empty($buKode)) {
-            $perKategoriRaw->where('h.bu_kode', $buKode);
+        if (!empty($konteksKode)) {
+            $perKategoriRaw->where('h.konteks_kode', $konteksKode);
         }
         $perKategori = $perKategoriRaw
             ->select('k.nama', DB::raw('COUNT(DISTINCT h.Tr_Pica_Emp_h_Code) as cnt'))
@@ -1170,12 +1170,12 @@ class PicaV2Controller extends Controller
         return [
             'total'       => $total,
             'per_status'  => $perStatus,
-            'per_bu'      => $perBu,
+            'per_konteks' => $perKonteks,
             'per_kategori'=> $perKategori,
             'trend'       => $trend,
             'tgl_awal'    => $tglAwal,
             'tgl_akhir'   => $tglAkhir,
-            'bu_kode'     => $buKode,
+            'konteks_kode'     => $konteksKode,
         ];
     }
 }

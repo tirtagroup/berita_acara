@@ -751,9 +751,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/{id}',           [MasterKategoriController::class, 'update'])->name('update');
         Route::patch('/{id}/toggle',  [MasterKategoriController::class, 'toggle'])->name('toggle');
 
-        // BU mapping per kategori (manage langsung dari edit kategori)
-        Route::post('/{id}/bu',           [MasterKategoriController::class, 'kategoriBuUpsert'])->name('bu.upsert');
-        Route::delete('/{id}/bu/{bu}',    [MasterKategoriController::class, 'kategoriBuDetach'])->name('bu.detach');
+        // Konteks mapping per kategori (manage langsung dari edit kategori)
+        Route::post('/{id}/konteks',                  [MasterKategoriController::class, 'kategoriBuUpsert'])->name('konteks.upsert');
+        Route::delete('/{id}/konteks/{konteks}',      [MasterKategoriController::class, 'kategoriBuDetach'])->name('konteks.detach');
 
         // Opsi per kategori (nested)
         Route::get('/{kategori}/opsi',                 [MasterKategoriController::class, 'opsiIndex'])->name('opsi.index');
@@ -762,7 +762,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('/{kategori}/opsi/{opsi}/toggle', [MasterKategoriController::class, 'opsiToggle'])->name('opsi.toggle');
     });
 
-    Route::prefix('master/bu-mapping')->name('master.mapping.')->group(function () {
+    Route::prefix('master/konteks-mapping')->name('master.mapping.')->group(function () {
         Route::get('/',        [MasterKategoriController::class, 'mappingMatrix'])->name('index');
         Route::post('/update', [MasterKategoriController::class, 'mappingUpdate'])->name('update');
     });
@@ -834,7 +834,8 @@ Route::middleware('auth')->group(function () {
 
     // AJAX endpoint untuk wizard
     Route::prefix('api')->group(function () {
-        Route::get('/bu/{kode}/kategori',      [BeritaAcaraV2Controller::class, 'kategoriByBu']);
+        Route::get('/konteks/{kode}/kategori', [BeritaAcaraV2Controller::class, 'kategoriByBu']);
+        Route::get('/bu/{kode}/kategori',      [BeritaAcaraV2Controller::class, 'kategoriByBu']); // deprecated alias
         Route::get('/kategori/{id}/opsi',      [BeritaAcaraV2Controller::class, 'opsiByKategori']);
         Route::get('/employees/search',        [BeritaAcaraV2Controller::class, 'searchEmployees']);
         Route::get('/opsi/search',             [BeritaAcaraV2Controller::class, 'searchOpsi']);
@@ -852,8 +853,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}/detach/{kategori}', [MasterKategoriController::class, 'opsiDetach'])->name('detach');
         Route::put('/{id}/mapping/{kategori}',   [MasterKategoriController::class, 'opsiMappingUpdate'])->name('mapping.update');
 
-        // Tag BU langsung ke opsi
-        Route::post('/{id}/bu',           [MasterKategoriController::class, 'opsiAttachBu'])->name('bu.attach');
-        Route::delete('/{id}/bu/{bu}',    [MasterKategoriController::class, 'opsiDetachBu'])->name('bu.detach');
+        // Tag Konteks langsung ke opsi
+        Route::post('/{id}/konteks',                [MasterKategoriController::class, 'opsiAttachBu'])->name('konteks.attach');
+        Route::delete('/{id}/konteks/{konteks}',    [MasterKategoriController::class, 'opsiDetachBu'])->name('konteks.detach');
     });
 });

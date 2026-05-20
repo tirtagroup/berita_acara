@@ -40,10 +40,10 @@
 
     <div class="bs-stepper wizard-numbered">
       <div class="bs-stepper-header">
-        <div class="step" data-target="#step-bu">
+        <div class="step" data-target="#step-konteks">
           <button type="button" class="step-trigger">
             <span class="bs-stepper-circle">1</span>
-            <span class="bs-stepper-label">BU</span>
+            <span class="bs-stepper-label">Konteks</span>
           </button>
         </div>
         <div class="line"></div>
@@ -92,17 +92,17 @@
 
       <div class="bs-stepper-content">
 
-        {{-- ============ STEP 1: BU ============ --}}
-        <div id="step-bu" class="content">
+        {{-- ============ STEP 1: Konteks============ --}}
+        <div id="step-konteks" class="content">
           <div class="content-header mb-3">
-            <h5 class="mb-0">Pilih Business Unit</h5>
-            <small>BU menentukan kategori mana yang wajib/disarankan/opsional di step 3.</small>
+            <h5 class="mb-0">Pilih Konteks</h5>
+            <small>Konteks menentukan kategori mana yang wajib/disarankan/opsional di step 3.</small>
           </div>
           <div class="row g-3">
-            @foreach ($businessUnits as $bu)
+            @foreach ($konteksList as $bu)
               <div class="col-md-4">
-                <label class="card text-center p-4 h-100 bu-card" style="cursor:pointer">
-                  <input type="radio" name="bu_kode" value="{{ $bu->kode }}" class="d-none bu-radio" required>
+                <label class="card text-center p-4 h-100 konteks-card" style="cursor:pointer">
+                  <input type="radio" name="konteks_kode" value="{{ $bu->kode }}" class="d-none konteks-radio" required>
                   <h3 class="mb-1">{{ $bu->kode }}</h3>
                   <h6 class="text-muted">{{ $bu->nama }}</h6>
                   <small class="text-muted">{{ $bu->deskripsi }}</small>
@@ -196,7 +196,7 @@
           </div>
 
           <div id="kategori-umum-container">
-            <div id="kategori-empty" class="text-center text-muted py-4">Pilih BU dulu di step 1.</div>
+            <div id="kategori-empty" class="text-center text-muted py-4">Pilih Konteksdulu di step 1.</div>
           </div>
 
           <div class="d-flex justify-content-between mt-4">
@@ -209,10 +209,10 @@
         <div id="step-fnb" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Kategori FnB</h5>
-            <small>Kategori khusus FnB. Step ini skip otomatis bila BU bukan FnB.</small>
+            <small>Kategori khusus FnB. Step ini skip otomatis bila Konteksbukan FnB.</small>
           </div>
           <div id="kategori-fnb-container">
-            <div class="text-muted small">Tidak ada kategori FnB untuk BU yang dipilih.</div>
+            <div class="text-muted small">Tidak ada kategori FnB untuk Konteksyang dipilih.</div>
           </div>
           <div class="d-flex justify-content-between mt-4">
             <button type="button" class="btn btn-outline-secondary btn-prev"><i class="bx bx-chevron-left"></i> Kembali</button>
@@ -224,11 +224,11 @@
         <div id="step-kronologi" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Kategori LAKA</h5>
-            <small>Kategori khusus LAKA. Step ini skip otomatis bila BU bukan LAKA.</small>
+            <small>Kategori khusus LAKA. Step ini skip otomatis bila Konteksbukan LAKA.</small>
           </div>
 
           <div id="kategori-laka-container">
-            <div class="text-muted small">Tidak ada kategori LAKA untuk BU yang dipilih.</div>
+            <div class="text-muted small">Tidak ada kategori LAKA untuk Konteksyang dipilih.</div>
           </div>
 
           <div class="d-flex justify-content-between mt-4">
@@ -241,12 +241,12 @@
         <div id="step-revisi" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Salah Admin / Permintaan Revisi</h5>
-            <small>Detail revisi data/dokumen. Step ini skip otomatis bila BU bukan REVISI.</small>
+            <small>Detail revisi data/dokumen. Step ini skip otomatis bila Konteksbukan REVISI.</small>
           </div>
 
           <h6 class="mb-2">Kategori</h6>
           <div id="kategori-revisi-container" class="mb-4">
-            <div class="text-muted small">Tidak ada kategori untuk BU yang dipilih.</div>
+            <div class="text-muted small">Tidak ada kategori untuk Konteksyang dipilih.</div>
           </div>
 
           <hr>
@@ -316,7 +316,7 @@
                     </small>
                   @endif
                 </dd>
-                <dt class="col-sm-3">Business Unit</dt><dd class="col-sm-9" id="rv-bu">—</dd>
+                <dt class="col-sm-3">Konteks</dt><dd class="col-sm-9" id="rv-konteks">—</dd>
                 <dt class="col-sm-3">Tanggal</dt><dd class="col-sm-9" id="rv-tanggal">—</dd>
                 <dt class="col-sm-3">Lokasi</dt><dd class="col-sm-9" id="rv-lokasi">—</dd>
                 <dt class="col-sm-3">Cabang</dt><dd class="col-sm-9" id="rv-company">—</dd>
@@ -342,9 +342,9 @@
 </div>
 
 <style>
-  .bu-card { transition: all .15s; border: 2px solid transparent; }
-  .bu-card:hover { background: #f5f5f5; }
-  .bu-card.selected { border-color: #696cff; background: #eef0ff; }
+  .konteks-card { transition: all .15s; border: 2px solid transparent; }
+  .konteks-card:hover { background: #f5f5f5; }
+  .konteks-card.selected { border-color: #696cff; background: #eef0ff; }
   .kategori-block { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
   .kategori-block.wajib { border-left: 4px solid #dc3545; background: #fff5f5; }
   .kategori-block.disarankan { border-left: 4px solid #ffc107; background: #fffbea; }
@@ -410,21 +410,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ===== BU radio card =====
-  document.querySelectorAll('.bu-card').forEach(card => {
+  // ===== Konteksradio card =====
+  document.querySelectorAll('.konteks-card').forEach(card => {
     card.addEventListener('click', function() {
-      document.querySelectorAll('.bu-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.konteks-card').forEach(c => c.classList.remove('selected'));
       this.classList.add('selected');
-      this.querySelector('.bu-radio').checked = true;
+      this.querySelector('.konteks-radio').checked = true;
       // enable Next button on step 1
-      document.querySelector('#step-bu .btn-next').disabled = false;
-      // reload kategori for selected BU
-      loadKategoriForBu(this.querySelector('.bu-radio').value);
+      document.querySelector('#step-konteks .btn-next').disabled = false;
+      // reload kategori for selected Konteks
+      loadKategoriForKonteks(this.querySelector('.konteks-radio').value);
     });
   });
 
-  // ===== Load kategori based on BU =====
-  function loadKategoriForBu(buKode) {
+  // ===== Load kategori based on Konteks=====
+  function loadKategoriForKonteks(konteksKode) {
     const umumCont   = document.getElementById('kategori-umum-container');
     const fnbCont    = document.getElementById('kategori-fnb-container');
     const lakaCont   = document.getElementById('kategori-laka-container');
@@ -434,22 +434,22 @@ document.addEventListener('DOMContentLoaded', function() {
     lakaCont.innerHTML   = '';
     revisiCont.innerHTML = '';
 
-    fetch(`/api/bu/${encodeURIComponent(buKode)}/kategori`)
+    fetch(`/api/konteks/${encodeURIComponent(konteksKode)}/kategori`)
       .then(r => r.json())
       .then(data => {
         const rows = data.kategori || [];
 
-        // Route kategori berdasarkan BU yang dipilih:
-        //   - Step 4 (FnB)    hanya bila BU = FNB
-        //   - Step 5 (LAKA)   hanya bila BU = LAKA
-        //   - Step 6 (REVISI) hanya bila BU = REVISI
-        //   - Kategori domain ≠ BU current → fallback ke step 3 (Umum)
+        // Route kategori berdasarkan Konteksyang dipilih:
+        //   - Step 4 (FnB)    hanya bila Konteks= FNB
+        //   - Step 5 (LAKA)   hanya bila Konteks= LAKA
+        //   - Step 6 (REVISI) hanya bila Konteks= REVISI
+        //   - Kategori domain ≠ Kontekscurrent → fallback ke step 3 (Umum)
         const buckets = { FNB: [], UMUM: [], LAKA: [], REVISI: [] };
         rows.forEach((k, idx) => {
           let bucket = 'UMUM';
-          if (k.domain === 'FNB'    && buKode === 'FNB')    bucket = 'FNB';
-          else if (k.domain === 'LAKA'   && buKode === 'LAKA')   bucket = 'LAKA';
-          else if (k.domain === 'REVISI' && buKode === 'REVISI') bucket = 'REVISI';
+          if (k.domain === 'FNB'    && konteksKode === 'FNB')    bucket = 'FNB';
+          else if (k.domain === 'LAKA'   && konteksKode === 'LAKA')   bucket = 'LAKA';
+          else if (k.domain === 'REVISI' && konteksKode === 'REVISI') bucket = 'REVISI';
           else bucket = 'UMUM';
           buckets[bucket].push({ ...k, _idx: idx });
         });
@@ -457,28 +457,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Render UMUM ke step 3 — flat list
         umumCont.innerHTML = '';
         if (buckets.UMUM.length === 0) {
-          umumCont.innerHTML = '<div class="text-muted py-3">Tidak ada kategori Umum untuk BU ini.</div>';
+          umumCont.innerHTML = '<div class="text-muted py-3">Tidak ada kategori Umum untuk Konteksini.</div>';
         } else {
           buckets.UMUM.forEach(k => renderKategoriBlock(umumCont, k, k._idx));
         }
 
         // Render FNB ke step 4
         if (buckets.FNB.length === 0) {
-          fnbCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori FnB untuk BU ini.</div>';
+          fnbCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori FnB untuk Konteksini.</div>';
         } else {
           buckets.FNB.forEach(k => renderKategoriBlock(fnbCont, k, k._idx));
         }
 
         // Render LAKA ke step 5
         if (buckets.LAKA.length === 0) {
-          lakaCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori LAKA untuk BU ini.</div>';
+          lakaCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori LAKA untuk Konteksini.</div>';
         } else {
           buckets.LAKA.forEach(k => renderKategoriBlock(lakaCont, k, k._idx));
         }
 
         // Render REVISI ke step 6
         if (buckets.REVISI.length === 0) {
-          revisiCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori Revisi untuk BU ini.</div>';
+          revisiCont.innerHTML = '<div class="text-muted small py-3">Tidak ada kategori Revisi untuk Konteksini.</div>';
         } else {
           buckets.REVISI.forEach(k => renderKategoriBlock(revisiCont, k, k._idx));
         }
@@ -536,8 +536,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function loadOpsiForKategori(block, kategoriId, idx) {
     const cont = block.querySelector('.opsi-container');
-    const buKode = document.querySelector('.bu-radio:checked')?.value || '';
-    const url = `/api/kategori/${kategoriId}/opsi` + (buKode ? `?bu=${encodeURIComponent(buKode)}` : '');
+    const konteksKode = document.querySelector('.konteks-radio:checked')?.value || '';
+    const url = `/api/kategori/${kategoriId}/opsi` + (konteksKode ? `?bu=${encodeURIComponent(konteksKode)}` : '');
     fetch(url)
       .then(r => r.json())
       .then(opsi => {
@@ -607,9 +607,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ===== Step order & navigation helper =====
   // Step numbers (1-indexed sesuai bs-stepper.to()):
-  //   1 = BU, 2 = Data, 3 = Kategori Umum, 4 = FnB, 5 = LAKA & Kronologi, 6 = Review
+  //   1 = Konteks, 2 = Data, 3 = Kategori Umum, 4 = FnB, 5 = LAKA & Kronologi, 6 = Review
   const STEP_ID_TO_NUM = {
-    'step-bu':         1,
+    'step-konteks':         1,
     'step-data':       2,
     'step-kategori':   3,
     'step-fnb':        4,
@@ -666,15 +666,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Initial state: step FnB & LAKA dimmed sampai BU dipilih & kategori ter-load
+  // Initial state: step FnB & LAKA dimmed sampai Konteksdipilih & kategori ter-load
   refreshSkipIndicators();
 
   function validateCurrentStep() {
     const active = document.querySelector('.bs-stepper-content .content.active');
     if (!active) return true;
-    if (active.id === 'step-bu') {
-      if (!document.querySelector('.bu-radio:checked')) {
-        alert('Pilih Business Unit dulu.');
+    if (active.id === 'step-konteks') {
+      if (!document.querySelector('.konteks-radio:checked')) {
+        alert('Pilih Konteks dulu.');
         return false;
       }
     }
@@ -735,7 +735,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ===== Render review step =====
   function renderReview() {
-    document.getElementById('rv-bu').textContent = document.querySelector('.bu-radio:checked')?.value || '—';
+    document.getElementById('rv-konteks').textContent = document.querySelector('.konteks-radio:checked')?.value || '—';
     document.getElementById('rv-tanggal').textContent = document.querySelector('[name="tanggal"]').value;
     document.getElementById('rv-lokasi').textContent = $('[name="lokasi_code"]').find(':selected').text() || '—';
     document.getElementById('rv-company').textContent = $('[name="company_code"]').find(':selected').text() || '—';

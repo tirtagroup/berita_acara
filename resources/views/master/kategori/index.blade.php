@@ -40,7 +40,7 @@
             <th>Kode</th>
             <th>Nama</th>
             <th>Parent</th>
-            <th>BU</th>
+            <th>Konteks</th>
             <th>Status</th>
             <th>Opsi</th>
             <th>Aksi</th>
@@ -53,8 +53,8 @@
               <td>{{ $k->nama }}</td>
               <td>{{ $k->parent?->nama ?? '—' }}</td>
               <td>
-                @forelse ($k->businessUnits as $bu)
-                  <small title="{{ $bu->nama }} — {{ $bu->pivot->level }}">{{ $bu->kode }}</small>{{ !$loop->last ? ', ' : '' }}
+                @forelse ($k->konteksList as $kn)
+                  <small title="{{ $kn->nama }} — {{ $kn->pivot->level }}">{{ $kn->kode }}</small>{{ !$loop->last ? ', ' : '' }}
                 @empty
                   <small class="text-muted">—</small>
                 @endforelse
@@ -91,7 +91,7 @@
     </div>
     <div class="card-footer">
       <a href="{{ route('master.mapping.index') }}" class="btn btn-outline-secondary">
-        <i class="bx bx-grid-alt"></i> Atur Mapping BU × Kategori
+        <i class="bx bx-grid-alt"></i> Atur Mapping Konteks × Kategori
       </a>
     </div>
   </div>

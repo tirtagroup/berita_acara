@@ -43,11 +43,11 @@
           <input type="date" name="tgl_akhir" class="form-control form-control-sm" value="{{ $tglAkhir }}">
         </div>
         <div class="col-md-2">
-          <label class="form-label">Business Unit</label>
-          <select name="bu_kode" class="form-select form-select-sm">
-            <option value="">— Semua BU —</option>
-            @foreach ($businessUnits as $bu)
-              <option value="{{ $bu->kode }}" {{ $buKode === $bu->kode ? 'selected' : '' }}>{{ $bu->kode }}</option>
+          <label class="form-label">Konteks</label>
+          <select name="konteks_kode" class="form-select form-select-sm">
+            <option value="">— Semua Konteks —</option>
+            @foreach ($konteksList as $k)
+              <option value="{{ $k->kode }}" {{ $konteksKode === $k->kode ? 'selected' : '' }}>{{ $k->kode }}</option>
             @endforeach
           </select>
         </div>
@@ -113,7 +113,7 @@
               <th>Kode</th>
               <th>Tanggal</th>
               <th>Status</th>
-              <th>BU</th>
+              <th>Konteks</th>
               <th>Pelaku</th>
               <th>Problem</th>
               <th>Kategori</th>
@@ -135,7 +135,7 @@
                     {{ $r->Status_PICA }}
                   </span>
                 </td>
-                <td><small>{{ $r->bu_kode ?? '—' }}</small></td>
+                <td><small>{{ $r->konteks_kode ?? '—' }}</small></td>
                 <td>
                   <a href="{{ route('pica-v2.list', ['pelaku' => $r->Emp_Code]) }}" class="text-decoration-none">
                     {{ $r->pelaku_name }}

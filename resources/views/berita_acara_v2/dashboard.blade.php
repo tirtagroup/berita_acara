@@ -74,7 +74,7 @@
         <span class="badge bg-label-primary ms-1">{{ $slices['ALL']['total'] }}</span>
       </button>
     </li>
-    @foreach ($businessUnits as $bu)
+    @foreach ($konteksList as $bu)
       <li class="nav-item">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-{{ strtolower($bu->kode) }}">
           {{ $bu->nama }}
@@ -99,7 +99,7 @@
     {{-- ============================================================
          PER-KONTEKS TABS
          ============================================================ --}}
-    @foreach ($businessUnits as $bu)
+    @foreach ($konteksList as $bu)
       <div class="tab-pane fade" id="tab-{{ strtolower($bu->kode) }}">
         @include('berita_acara_v2._dashboard_slice', [
           'slice'   => $slices[$bu->kode],

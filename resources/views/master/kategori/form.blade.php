@@ -91,43 +91,43 @@
   </div>
 
   @if ($mode === 'edit')
-    {{-- ============ BU Mapping (manage langsung) ============ --}}
+    {{-- ============ Konteks Mapping (manage langsung) ============ --}}
     <div class="card mt-4">
       <div class="card-header bg-light">
-        <h5 class="card-title m-0">Business Unit Mapping</h5>
-        <small class="text-muted">Atur BU mana yang relevan + level untuk kategori ini. <strong>Wajib</strong> = auto-check di wizard BA, <strong>Disarankan</strong> = highlighted, <strong>Opsional</strong> = tersedia.</small>
+        <h5 class="card-title m-0">Konteks Mapping</h5>
+        <small class="text-muted">Atur Konteks mana yang relevan + level untuk kategori ini. <strong>Wajib</strong> = auto-check di wizard BA, <strong>Disarankan</strong> = highlighted, <strong>Opsional</strong> = tersedia.</small>
       </div>
       <div class="card-body">
-        @if ($kategori->businessUnits->count() === 0)
-          <p class="text-muted small mb-3">Belum ada BU yang attach ke kategori ini.</p>
+        @if ($kategori->konteksList->count() === 0)
+          <p class="text-muted small mb-3">Belum ada Konteks yang attach ke kategori ini.</p>
         @else
           <div class="row g-2 mb-3">
-            @foreach ($kategori->businessUnits as $bu)
+            @foreach ($kategori->konteksList as $k)
               <div class="col-md-4">
                 <div class="card border">
                   <div class="card-body p-2">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <div>
-                        <strong>{{ $bu->kode }}</strong>
-                        <br><small class="text-muted">{{ $bu->nama }}</small>
+                        <strong>{{ $k->kode }}</strong>
+                        <br><small class="text-muted">{{ $k->nama }}</small>
                       </div>
-                      <form action="{{ route('master.kategori.bu.detach', [$kategori->id, $bu->id]) }}" method="POST">
+                      <form action="{{ route('master.kategori.konteks.detach', [$kategori->id, $k->id]) }}" method="POST">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Detach BU {{ $bu->kode }} dari kategori ini?');"
+                                onclick="return confirm('Detach Konteks {{ $k->kode }} dari kategori ini?');"
                                 title="Detach">
                           <i class="bx bx-x"></i>
                         </button>
                       </form>
                     </div>
-                    <form action="{{ route('master.kategori.bu.upsert', $kategori->id) }}" method="POST">
+                    <form action="{{ route('master.kategori.konteks.upsert', $kategori->id) }}" method="POST">
                       @csrf
-                      <input type="hidden" name="bu_id" value="{{ $bu->id }}">
+                      <input type="hidden" name="konteks_id" value="{{ $k->id }}">
                       <div class="input-group input-group-sm">
                         <select name="level" class="form-select form-select-sm">
                           @foreach ($allLevels as $lv)
-                            <option value="{{ $lv }}" {{ $bu->pivot->level === $lv ? 'selected' : '' }}>{{ ucfirst($lv) }}</option>
+                            <option value="{{ $lv }}" {{ $k->pivot->level === $lv ? 'selected' : '' }}>{{ ucfirst($lv) }}</option>
                           @endforeach
                         </select>
                         <button type="submit" class="btn btn-outline-primary"><i class="bx bx-save"></i></button>
@@ -140,17 +140,17 @@
           </div>
         @endif
 
-        @if ($availableBu->count() > 0)
+        @if ($availableKonteks->count() > 0)
           <hr>
-          <h6 class="mb-2">Attach BU baru</h6>
-          <form action="{{ route('master.kategori.bu.upsert', $kategori->id) }}" method="POST" class="row g-2 align-items-end">
+          <h6 class="mb-2">Attach Konteks baru</h6>
+          <form action="{{ route('master.kategori.konteks.upsert', $kategori->id) }}" method="POST" class="row g-2 align-items-end">
             @csrf
             <div class="col-md-5">
-              <label class="form-label">BU</label>
-              <select name="bu_id" class="form-select" required>
-                <option value="">— Pilih BU —</option>
-                @foreach ($availableBu as $bu)
-                  <option value="{{ $bu->id }}">{{ $bu->kode }} — {{ $bu->nama }}</option>
+              <label class="form-label">Konteks</label>
+              <select name="konteks_id" class="form-select" required>
+                <option value="">— Pilih Konteks —</option>
+                @foreach ($availableKonteks as $k)
+                  <option value="{{ $k->id }}">{{ $k->kode }} — {{ $k->nama }}</option>
                 @endforeach
               </select>
             </div>
@@ -169,7 +169,7 @@
             </div>
           </form>
         @else
-          <small class="text-muted">Semua BU sudah attach.</small>
+          <small class="text-muted">Semua Konteks sudah attach.</small>
         @endif
       </div>
     </div>
