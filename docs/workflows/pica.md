@@ -124,18 +124,32 @@ Tr_PICA_Comment (existing) — comments
 [PIC create wizard] 
     │
     ↓
-DRAFT
-    │ PIC selesai setup pertanyaan
+DRAFT (wizard belum submit)
+    │ Submit wizard
+    ↓
+PREPARING  ← baru: fase persiapan pertanyaan oleh Dewan
+    │ Dewan tambah pertanyaan (toggle wajib_jawab default off, PIC bisa override)
+    │ Pelaku boleh lihat & kasih komentar (belum is_final)
+    │ Trigger transisi: PIC klik "Lock & kirim ke pelaku" ATAU Pelaku klik "Saya siap menjawab"
     ↓
 WAITING_PELAKU
-    │ Pelaku jawab semua wajib_jawab
-    │ Dewan/PIC bisa kasih komentar/tambah pertanyaan
+    │ Pelaku jawab semua wajib_jawab (is_final=true)
+    │ Dewan/PIC kasih komentar/follow-up
     ↓ (validasi: semua wajib_jawab terisi)
 ACTION_PLANNING
     │ PIC + dewan susun corrective + preventive action
     ↓
 CLOSED
 ```
+
+**Permission per fase:**
+
+| Fase | PIC | Dewan | Pelaku |
+|---|---|---|---|
+| PREPARING | tambah Q, toggle wajib bebas, komentar, **trigger ke WAITING_PELAKU** | tambah Q (wajib default off), komentar | lihat read-only, komentar, **trigger ke WAITING_PELAKU** (self-start) |
+| WAITING_PELAKU | komentar, tambah Q follow-up | komentar, tambah Q follow-up | **jawab is_final**, komentar |
+| ACTION_PLANNING | susun action, klik CLOSED | susun action | komentar |
+| CLOSED | read-only | read-only | read-only |
 
 ---
 
@@ -152,7 +166,7 @@ CLOSED
 | 3. Data Umum | Pelaku (Select2 emp), Tanggal, Problem note, Kategori PICA (multi-select) |
 | 4. Participants | PIC auto = creator. Pick Dewan members (multi-select karyawan) |
 | 5. Setup Q | Wajib universal auto-include (locked). Pick Bantuan (checklist dari master). Tambah Bebas (form). Per item: toggle `wajib_jawab` |
-| 6. Submit | Review & create. Status → WAITING_PELAKU. Redirect ke discussion page |
+| 6. Submit | Review & create. Status → **PREPARING**. Redirect ke discussion page (mode PREPARING — Dewan boleh tambah pertanyaan dulu sebelum pelaku mulai jawab) |
 
 ---
 

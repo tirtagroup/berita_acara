@@ -211,8 +211,45 @@ class BeritaAcaraV2Controller extends Controller
                 ->first();
         }
 
+        // PICA v2 yang link ke BA ini (Fase 6 — BA↔PICA integration)
+        $picaListRaw = DB::table('Tr_PICA_Emp_h as h')
+            ->leftJoin('master_employees as me', 'me.emp_id', '=', 'h.Emp_Code')
+            ->where('h.NoBA', $kode)
+            ->orderByDesc('h.Date_PICA')
+            ->get([
+                'h.Tr_Pica_Emp_h_Code', 'h.Date_PICA', 'h.Status_PICA',
+                'h.Emp_Code', 'h.Problem_Note', 'me.emp_name'
+            ]);
+
+        // Progress wajib_jawab per PICA
+        $picaCodes = $picaListRaw->pluck('Tr_Pica_Emp_h_Code')->all();
+        $picaProgress = [];
+        if (!empty($picaCodes)) {
+            $progRows = DB::table('tr_pica_pertanyaan_d as q')
+                ->leftJoin('tr_pica_jawaban as j', function ($join) {
+                    $join->on('j.pertanyaan_id', '=', 'q.id')->where('j.is_final', 1);
+                })
+                ->whereIn('q.tr_pica_main_code', $picaCodes)
+                ->where('q.wajib_jawab', 1)
+                ->select('q.tr_pica_main_code',
+                    DB::raw('COUNT(DISTINCT q.id) as total'),
+                    DB::raw('COUNT(DISTINCT j.id) as terisi'))
+                ->groupBy('q.tr_pica_main_code')
+                ->get();
+            foreach ($progRows as $p) {
+                $picaProgress[$p->tr_pica_main_code] = [
+                    'total' => (int) $p->total, 'terisi' => (int) $p->terisi,
+                ];
+            }
+        }
+        foreach ($picaListRaw as $p) {
+            $p->progress = $picaProgress[$p->Tr_Pica_Emp_h_Code] ?? ['total' => 0, 'terisi' => 0];
+        }
+        $picaList = $picaListRaw;
+
         return view('berita_acara_v2.show', compact(
-            'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval'
+            'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval',
+            'picaList'
         ));
     }
 

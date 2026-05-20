@@ -169,5 +169,86 @@
     </div>
   </div>
 
+  {{-- ============ PICA TERKAIT (Fase 6 — BA↔PICA integration) ============ --}}
+  @php
+    $statusColor = [
+      'DRAFT'           => 'secondary',
+      'PREPARING'       => 'info',
+      'WAITING_PELAKU'  => 'warning',
+      'ACTION_PLANNING' => 'primary',
+      'CLOSED'          => 'success',
+    ];
+  @endphp
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="card-title m-0">
+        <i class="bx bx-clipboard"></i> PICA Terkait
+        @if ($picaList->isNotEmpty())
+          <span class="badge bg-label-primary ms-1">{{ $picaList->count() }}</span>
+        @endif
+      </h5>
+      <a href="{{ route('pica-v2.create', ['ba_code' => $ba->Tr_BA_Main_Code]) }}"
+         class="btn btn-sm btn-primary">
+        <i class="bx bx-plus"></i> Buat PICA dari BA ini
+      </a>
+    </div>
+    <div class="card-body p-0">
+      @if ($picaList->isEmpty())
+        <div class="text-center text-muted py-4">
+          <i class="bx bx-info-circle"></i>
+          Belum ada PICA yang link ke BA ini. Klik tombol di atas untuk buat PICA tindak-lanjut.
+        </div>
+      @else
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Kode PICA</th>
+                <th>Tanggal</th>
+                <th>Status</th>
+                <th>Pelaku</th>
+                <th>Problem</th>
+                <th width="120">Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach ($picaList as $p)
+                <tr>
+                  <td>
+                    <a href="{{ route('pica-v2.discussion', ['kode' => $p->Tr_Pica_Emp_h_Code]) }}">
+                      <code>{{ $p->Tr_Pica_Emp_h_Code }}</code>
+                    </a>
+                  </td>
+                  <td><small>{{ \Carbon\Carbon::parse($p->Date_PICA)->format('d M Y') }}</small></td>
+                  <td>
+                    <span class="badge bg-label-{{ $statusColor[$p->Status_PICA] ?? 'secondary' }}">
+                      {{ $p->Status_PICA }}
+                    </span>
+                  </td>
+                  <td>
+                    {{ $p->emp_name ?? $p->Emp_Code }}
+                    <small class="text-muted">({{ $p->Emp_Code }})</small>
+                  </td>
+                  <td><small class="text-muted">{{ \Illuminate\Support\Str::limit($p->Problem_Note, 60) }}</small></td>
+                  <td>
+                    @if ($p->progress['total'] > 0)
+                      <small>{{ $p->progress['terisi'] }}/{{ $p->progress['total'] }}</small>
+                      <div class="progress" style="height:5px">
+                        <div class="progress-bar bg-{{ $p->progress['terisi'] >= $p->progress['total'] ? 'success' : 'warning' }}"
+                             style="width: {{ $p->progress['total'] ? ($p->progress['terisi'] / $p->progress['total'] * 100) : 0 }}%"></div>
+                      </div>
+                    @else
+                      <small class="text-muted">—</small>
+                    @endif
+                  </td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      @endif
+    </div>
+  </div>
+
 </div>
 @endsection

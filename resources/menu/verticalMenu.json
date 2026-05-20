@@ -246,6 +246,16 @@
       "slug": "forms",
       "submenu": [
         {
+          "url": "/pica/v2/dashboard",
+          "name": "Dashboard PICA (v2)",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/pica/v2/list",
+          "name": "List PICA (v2)",
+          "slug": "forms-basic-inputs"
+        },
+        {
           "url": "/pica/v2/create",
           "name": "Create PICA (v2 Wizard)",
           "slug": "forms-basic-inputs"
@@ -257,7 +267,7 @@
         },
         {
           "url": "/dashboard_pica",
-          "name": "History",
+          "name": "History (legacy)",
           "slug": "forms-basic-inputs"
         }
       ]

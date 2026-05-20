@@ -803,13 +803,33 @@ Route::middleware('auth')->group(function () {
     });
 
     // ============================================================
-    // PICA v2 — Wizard (Fase 2)
+    // PICA v2 — Wizard (Fase 2) + Discussion (Fase 3)
     // ============================================================
     Route::prefix('pica/v2')->name('pica-v2.')->group(function () {
+        // Dashboard + List (Fase 5)
+        Route::get('/dashboard',      [PicaV2Controller::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard-data', [PicaV2Controller::class, 'dashboardData'])->name('dashboard.data');
+        Route::get('/list',           [PicaV2Controller::class, 'list'])->name('list');
+
         Route::get('/create',         [PicaV2Controller::class, 'create'])->name('create');
         Route::post('/store',         [PicaV2Controller::class, 'store'])->name('store');
         Route::get('/search-ba',      [PicaV2Controller::class, 'searchBa'])->name('search-ba');
         Route::get('/search-users',   [PicaV2Controller::class, 'searchUsers'])->name('search-users');
+
+        // Discussion (Fase 3)
+        Route::get('/discussion',                                  [PicaV2Controller::class, 'discussion'])->name('discussion');
+        Route::post('/{kode}/pertanyaan',                          [PicaV2Controller::class, 'addPertanyaan'])->name('pertanyaan.add');
+        Route::delete('/{kode}/pertanyaan/{id}',                   [PicaV2Controller::class, 'deletePertanyaan'])->name('pertanyaan.delete');
+        Route::post('/{kode}/pertanyaan/{id}/jawaban',             [PicaV2Controller::class, 'addJawaban'])->name('jawaban.add');
+        Route::patch('/{kode}/jawaban/{id}/final',                 [PicaV2Controller::class, 'setFinal'])->name('jawaban.final');
+        Route::post('/{kode}/phase',                               [PicaV2Controller::class, 'togglePhase'])->name('phase.toggle');
+
+        // Report (Fase 4 — structured compile sections A-G)
+        Route::get('/report',                                      [PicaV2Controller::class, 'report'])->name('report');
+        Route::post('/{kode}/report',                              [PicaV2Controller::class, 'saveReport'])->name('report.save');
+        Route::post('/{kode}/report/whys',                         [PicaV2Controller::class, 'saveWhys'])->name('report.whys');
+        Route::post('/{kode}/report/actions',                      [PicaV2Controller::class, 'saveActions'])->name('report.actions');
+        Route::post('/{kode}/report/close',                        [PicaV2Controller::class, 'closePica'])->name('report.close');
     });
 
     // AJAX endpoint untuk wizard
