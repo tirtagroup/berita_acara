@@ -113,7 +113,7 @@ Tr_PICA_Comment (existing) — comments
 
 ### Reuse
 
-- `ms_business_unit` (konteks LAKA/FNB/OP_HR/REVISI) — shared dengan BA v2.
+- `ms_konteks` (konteks LAKA/FNB/OP_HR/REVISI) — shared dengan BA v2.
 - `master_employees` (untuk pick pelaku, dewan).
 
 ---
@@ -161,7 +161,7 @@ CLOSED
 
 | Step | Isi |
 |---|---|
-| 1. BU/Konteks | Pilih LAKA/FNB/OP_HR/REVISI (reuse `ms_business_unit`) |
+| 1. Konteks | Pilih LAKA/FNB/OP_HR/REVISI (reuse `ms_konteks`) |
 | 2. BA Link | Opsional: pilih BA induk (Select2 AJAX `/api/ba/search`) |
 | 3. Data Umum | Pelaku (Select2 emp), Tanggal, Problem note, Kategori PICA (multi-select) |
 | 4. Participants | PIC auto = creator. Pick Dewan members (multi-select karyawan) |

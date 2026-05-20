@@ -5,12 +5,43 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 
-  <div class="d-flex justify-content-between align-items-start mb-3">
+  @if (session('success'))
+    <div class="alert alert-success alert-dismissible">
+      {!! session('success') !!}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  @endif
+  @if ($errors->any())
+    <div class="alert alert-danger">
+      <ul class="mb-0">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+    </div>
+  @endif
+
+  <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <h4 class="fw-bold py-3 mb-0">
       <span class="text-muted fw-light">Berita Acara /</span> Detail
       <br><code class="fs-6">{{ $ba->Tr_BA_Main_Code }}</code>
+      @if (!empty($ba->edit_allowed))
+        <span class="badge bg-label-warning ms-2" title="Creator boleh edit BA ini"><i class="bx bx-edit"></i> Edit terbuka</span>
+      @endif
     </h4>
-    <div>
+    <div class="d-flex gap-2 flex-wrap">
+      @if (!empty($canEdit))
+        <a href="{{ route('berita-acara-v2.edit', ['kode' => $ba->Tr_BA_Main_Code]) }}" class="btn btn-warning">
+          <i class="bx bx-edit"></i> Edit BA
+        </a>
+      @endif
+      @if (!empty($isAdmin))
+        <form method="POST" action="{{ route('berita-acara-v2.toggle-edit', ['kode' => $ba->Tr_BA_Main_Code]) }}"
+              onsubmit="return confirm('{{ $ba->edit_allowed ? 'Kunci kembali (creator tidak boleh edit)?' : 'Izinkan creator edit BA ini?' }}');">
+          @csrf
+          <button class="btn btn-outline-{{ $ba->edit_allowed ? 'danger' : 'primary' }}" type="submit"
+                  title="Toggle apakah creator BA boleh edit">
+            <i class="bx bx-{{ $ba->edit_allowed ? 'lock' : 'lock-open' }}"></i>
+            {{ $ba->edit_allowed ? 'Kunci edit' : 'Buka edit untuk creator' }}
+          </button>
+        </form>
+      @endif
       <a href="{{ route('berita-acara-v2.dashboard') }}" class="btn btn-outline-secondary">
         <i class="bx bx-arrow-back"></i> Dashboard
       </a>

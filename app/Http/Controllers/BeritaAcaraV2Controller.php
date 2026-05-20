@@ -247,10 +247,152 @@ class BeritaAcaraV2Controller extends Controller
         }
         $picaList = $picaListRaw;
 
+        $canEdit = $this->canEditBa($ba);
+        $isAdmin = $this->isAdmin();
+
         return view('berita_acara_v2.show', compact(
             'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval',
-            'picaList'
+            'picaList', 'canEdit', 'isAdmin'
         ));
+    }
+
+    /**
+     * Helper: cek role admin/super_admin.
+     */
+    protected function isAdmin(): bool
+    {
+        $role = strtolower(auth()->user()->role ?? '');
+        return in_array($role, ['admin', 'super_admin', 'superadmin'], true);
+    }
+
+    /**
+     * Helper: bisa edit BA bila admin, ATAU creator dgn edit_allowed=true.
+     */
+    protected function canEditBa($ba): bool
+    {
+        if ($this->isAdmin()) return true;
+        $username = auth()->user()->username ?? '';
+        return ((bool) ($ba->edit_allowed ?? false))
+            && strcasecmp($username, $ba->Rec_UserCreated ?? '') === 0;
+    }
+
+    /**
+     * Toggle edit_allowed flag (admin only).
+     */
+    public function toggleEditAllowed(Request $request, $kode)
+    {
+        abort_unless($this->isAdmin(), 403, 'Hanya admin yang boleh toggle edit_allowed.');
+
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+
+        $new = !((bool) $ba->edit_allowed);
+        DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)
+            ->update(['edit_allowed' => $new, 'updated_at' => now()]);
+
+        return back()->with('success',
+            $new ? 'Edit BA diizinkan untuk creator.' : 'Edit BA dikunci kembali.');
+    }
+
+    /**
+     * Edit form BA. Permission: admin OR creator+edit_allowed.
+     */
+    public function edit(Request $request)
+    {
+        $kode = $request->query('kode');
+        abort_unless($kode, 404);
+
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+        abort_unless($this->canEditBa($ba), 403, 'Anda tidak diizinkan edit BA ini.');
+
+        $kategoriAttached = DB::table('tr_ba_kategori_d')
+            ->where('tr_ba_main_code', $kode)
+            ->pluck('kategori_id')->all();
+
+        $kronologi = DB::table('tr_ba_kronologi')
+            ->where('tr_ba_main_code', $kode)
+            ->orderBy('id')
+            ->get();
+
+        $kategoriList = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
+        $lokasi  = DB::table('ms_lokasi')->select('lokasi_code', 'lokasi_desc')->orderBy('lokasi_desc')->get();
+        $company = DB::table('ms_company')->select('company_code', 'description')->orderBy('description')->get();
+        $divisi  = DB::table('ms_subbdivision')->select('subbdiv_code', 'subbdiv_desc')->orderBy('subbdiv_desc')->get();
+
+        return view('berita_acara_v2.edit', compact(
+            'ba', 'kategoriAttached', 'kronologi', 'kategoriList',
+            'lokasi', 'company', 'divisi'
+        ));
+    }
+
+    /**
+     * Update BA dari edit form. Permission: admin OR creator+edit_allowed.
+     */
+    public function update(Request $request, $kode)
+    {
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+        abort_unless($this->canEditBa($ba), 403);
+
+        $request->validate([
+            'Date_BA'       => ['required', 'date'],
+            'Ms_Emp_Code'   => ['required', 'string', 'max:50'],
+            'Ms_Emp_Div'    => ['nullable', 'string', 'max:50'],
+            'rec_comcode'   => ['nullable', 'string', 'max:50'],
+            'rec_areacode'  => ['nullable', 'string', 'max:50'],
+            'BA_Desc'       => ['required', 'string', 'max:1000'],
+            'kategori_ids'  => ['nullable', 'array'],
+            'kategori_ids.*'=> ['integer', 'exists:ms_ba_kategori,id'],
+            'kronologi'     => ['nullable', 'array'],
+            'kronologi.*'   => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->update([
+                'Date_BA'      => $request->Date_BA,
+                'Ms_Emp_Code'  => $request->Ms_Emp_Code,
+                'Ms_Emp_Div'   => $request->Ms_Emp_Div,
+                'rec_comcode'  => $request->rec_comcode,
+                'rec_areacode' => $request->rec_areacode,
+                'BA_Desc'      => $request->BA_Desc,
+                'updated_at'   => now(),
+            ]);
+
+            // Sync kategori (replace-all strategy)
+            DB::table('tr_ba_kategori_d')->where('tr_ba_main_code', $kode)->delete();
+            foreach (($request->kategori_ids ?? []) as $katId) {
+                DB::table('tr_ba_kategori_d')->insert([
+                    'tr_ba_main_code' => $kode,
+                    'kategori_id'     => (int) $katId,
+                    'opsi_id'         => null,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // Sync kronologi (replace-all)
+            DB::table('tr_ba_kronologi')->where('tr_ba_main_code', $kode)->delete();
+            foreach (($request->kronologi ?? []) as $i => $k) {
+                $k = trim($k ?? '');
+                if ($k === '') continue;
+                DB::table('tr_ba_kronologi')->insert([
+                    'tr_ba_main_code' => $kode,
+                    'urutan'          => $i + 1,
+                    'detail'          => $k,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('berita-acara-v2.show', ['kode' => $kode])
+                ->with('success', "BA <strong>{$kode}</strong> berhasil diupdate.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['update' => 'Gagal update: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**

@@ -31,6 +31,7 @@ use App\Http\Controllers\Master_MultiDetailKasus_Controller;
 use App\Http\Controllers\Tr_PICA_Controller;
 use App\Http\Controllers\MasterKategoriController;
 use App\Http\Controllers\MasterPicaController;
+use App\Http\Controllers\MasterCekMappingController;
 use App\Http\Controllers\BeritaAcaraV2Controller;
 use App\Http\Controllers\PicaV2Controller;
 
@@ -767,6 +768,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/update', [MasterKategoriController::class, 'mappingUpdate'])->name('update');
     });
 
+    // Master Cek Flag mapping (legacy Tr_Ba_Main_New.Cek* → kategori v2)
+    Route::prefix('master/cek-mapping')->name('master.cek-mapping.')->group(function () {
+        Route::get('/',                  [MasterCekMappingController::class, 'index'])->name('index');
+        Route::put('/{id}',              [MasterCekMappingController::class, 'update'])->name('update');
+        Route::patch('/{id}/toggle',     [MasterCekMappingController::class, 'toggle'])->name('toggle');
+    });
+
     // ============================================================
     // Master PICA v2 (kategori + pertanyaan)
     // ============================================================
@@ -800,6 +808,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/show',      [BeritaAcaraV2Controller::class, 'show'])->name('show');
         Route::get('/create',    [BeritaAcaraV2Controller::class, 'create'])->name('create');
         Route::post('/store',    [BeritaAcaraV2Controller::class, 'store'])->name('store');
+        // Edit (admin OR creator+edit_allowed)
+        Route::get('/edit',                       [BeritaAcaraV2Controller::class, 'edit'])->name('edit');
+        Route::post('/{kode}/update',             [BeritaAcaraV2Controller::class, 'update'])->name('update');
+        Route::post('/{kode}/toggle-edit-allowed',[BeritaAcaraV2Controller::class, 'toggleEditAllowed'])->name('toggle-edit');
     });
 
     // ============================================================

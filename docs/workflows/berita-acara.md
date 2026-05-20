@@ -148,4 +148,62 @@ Trigger pengiriman email perlu ditelusuri lebih lanjut — kemungkinan saat stat
 
 ---
 
+## v2 Implementation Notes (2026-05-20)
+
+**Modul BA v2** sudah live dengan fitur:
+
+### Konteks (sebelumnya "Business Unit" / "BU")
+- 4 konteks: `LAKA`, `FNB`, `OP_HR`, `REVISI` (tabel `ms_konteks`).
+- Rename DB+code dari `ms_business_unit`/`bu_kode` ke `ms_konteks`/`konteks_kode` di migration `2026_05_20_180000`.
+
+### Multi-kategori
+- Pivot `tr_ba_kategori_d` (BA × kategori, opsional + opsi_id).
+- 14 kategori universal (`ms_ba_kategori`), 35 opsi unik (`ms_ba_kategori_opsi`) N:M via `ms_kategori_opsi_mapping`.
+- Konteks × kategori mapping di `ms_konteks_kategori_mapping` (level: wajib/disarankan/opsional).
+- Opsi langsung tag ke konteks: `ms_opsi_konteks_mapping`.
+
+### Wizard Create 6-step
+1. Konteks (radio cards)
+2. Data umum (pelaku, tanggal, lokasi, company, deskripsi, **kronologi**, ms_kasus legacy)
+3. Kategori Umum (multi-select, level-aware)
+4. Kategori FnB (skip otomatis bila bukan FNB)
+5. Kategori LAKA (skip otomatis bila bukan LAKA)
+6. Salah Admin / Revisi (skip otomatis bila bukan REVISI) — termasuk `tr_ba_request_revisi` + `tr_ba_salah_isi_detail`
+7. Review & Submit
+
+### Edit BA (Fase 4)
+- URL: `/beritaacara/v2/edit?kode=BA-XXX`
+- Permission:
+  - User dengan `users.role` = `admin` / `super_admin` → SELALU bisa edit
+  - Creator (Rec_UserCreated) → bisa edit BILA `Tr_Ba_Main_New.edit_allowed = true`
+- Admin toggle `edit_allowed` via tombol di show page (`POST /beritaacara/v2/{kode}/toggle-edit-allowed`)
+- Migration `2026_05_20_190000` tambah kolom `edit_allowed BOOLEAN DEFAULT 0`
+- Show page menampilkan badge "Edit terbuka" ketika `edit_allowed=true`
+- Field editable: tanggal, lokasi, company, pelaku, divisi, deskripsi, kategori_ids, kronologi
+- Field NOT editable: kode BA, konteks, pelapor, Cek* flags (audit trail)
+
+### Migrasi Cek* Legacy → Kategori v2 (Fase 5)
+
+Tabel mapping admin: `ms_cek_flag_mapping` (migration `2026_05_20_200000`).
+
+URL admin CRUD: `/master/cek-mapping` — admin bisa adjust mapping `CekPelanggaran → PELANGGARAN_SOP`, `CekLaka → LAKA_PENYEBAB`, dst.
+
+Artisan command:
+```bash
+php artisan ba:migrate-cek-flags --dry-run    # preview: ~19498 BA, ~21703 rows
+php artisan ba:migrate-cek-flags --force      # eksekusi
+```
+
+Karakteristik:
+- Skip BA yang sudah punya kategori_d rows (anti-duplicate).
+- Multi-kategori per BA didukung (1 BA bisa punya CekFraud + CekPerubahanSOP → 2 rows).
+- Hanya mapping `active=true` yang dipakai.
+- `opsi_id` di kategori_d = NULL (legacy tidak ada opsi).
+
+### Integrasi dengan PICA v2
+
+Detail BA show menampilkan section **"PICA Terkait"** dengan tombol "Buat PICA dari BA ini" (`/pica/v2/create?ba_code=X`). PICA prefill BA induk di step 2 wizard.
+
+---
+
 > **Action item**: Tim HR/IT mohon review & koreksi alur di atas, terutama bagian yang ditandai 🟡 ASUMSI.

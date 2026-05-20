@@ -193,38 +193,40 @@ Di `Tr_Ba_Main_New`, kolom yang masih **single-value** padahal idealnya multi:
 - `Ms_Kasus` (kasus utama — referensi ke `ms_kasus.ms_kasus_code`, 694 nilai)
 - `MS_Detail_Kasus` (detail kasus)
 
-### Arsitektur yang Disepakati: Universal Categories + BU Mapping
+### Arsitektur yang Disepakati: Universal Categories + Konteks Mapping
 
 Setelah diskusi domain, arsitektur final:
 
 ```
-ms_business_unit          (BU: LAKA, FNB, OP_HR, ...)
+ms_konteks                (Konteks: LAKA, FNB, OP_HR, REVISI, ...)
         │
         │ N:N
-ms_bu_kategori_mapping    (BU × kategori, dengan level: wajib/disarankan/opsional)
+ms_konteks_kategori_mapping (Konteks × kategori, dengan level: wajib/disarankan/opsional)
         │
         │ N:N
-ms_ba_kategori            (master semua kategori, UNIVERSAL — tidak partition per BU)
+ms_ba_kategori            (master semua kategori, UNIVERSAL — tidak partition per Konteks)
         │
         │ 1:N
-ms_ba_<kategori>          (tabel opsi/kasus per kategori, universal)
+ms_ba_kategori_opsi       (tabel opsi/kasus per kategori, universal)
 ```
+
+> 📌 **Rename history**: Sebelumnya bernama `ms_business_unit` / `BU`. Di-rename ke `ms_konteks` / `Konteks` di migration `2026_05_20_180000_rename_bu_to_konteks` (lihat commit `e276884`).
 
 **Prinsip**:
 1. **Semua kategori universal** — bisa attach ke BA mana saja (multi-kategori).
-2. **BU = helper/preset**: memandu user kategori mana yang **wajib/disarankan/opsional**, tapi user tetap punya kebebasan.
-3. **Naming**: `ms_ba_<kategori>` tanpa prefix BU (sebelumnya sempat dirancang dengan prefix `fnb_*` — sudah di-revisi).
-4. **`Cek*` flags existing**: belum diputuskan — pilihan deprecate (gunakan pivot baru) atau dipakai sebagai cache.
+2. **Konteks = helper/preset**: memandu user kategori mana yang **wajib/disarankan/opsional**, tapi user tetap punya kebebasan.
+3. **Naming**: `ms_ba_<kategori>` tanpa prefix Konteks (sebelumnya sempat dirancang dengan prefix `fnb_*` — sudah di-revisi).
+4. **`Cek*` flags legacy**: dipertahankan, lalu di-migrate ke `tr_ba_kategori_d` via artisan command `ba:migrate-cek-flags` (read mapping dari `ms_cek_flag_mapping`).
 
-Lihat [`docs/categories.md`](categories.md) untuk daftar lengkap BU, kategori, opsi, dan draft mapping.
+Lihat [`docs/categories.md`](categories.md) untuk daftar lengkap Konteks, kategori, opsi, dan draft mapping.
 
 ### Tabel Baru yang Akan Dibuat
 
 | Tabel | Tujuan | Status data |
 |---|---|---|
-| `ms_business_unit` | Master BU (LAKA, FNB, OP_HR, …) | 3 BU draft, perlu validasi |
+| `ms_konteks` (`ms_business_unit`) | Master Konteks (LAKA, FNB, OP_HR, REVISI) | 4 Konteks live |
 | `ms_ba_kategori` | Master semua kategori universal | 14 kategori, kode tercatat di categories.md |
-| `ms_bu_kategori_mapping` | Pivot BU × Kategori dengan kolom `level` | Draft, perlu validasi user |
+| `ms_konteks_kategori_mapping` | Pivot BU × Kategori dengan kolom `level` | Draft, perlu validasi user |
 | `ms_ba_laka_penyebab` | Opsi sub-LAKA | ✅ 7 opsi |
 | `ms_ba_pelanggaran_sop` | Opsi SOP | ✅ 5 opsi |
 | `ms_ba_logistik` | Opsi Logistik (FnB) | ✅ 7 opsi |
@@ -242,40 +244,59 @@ Lihat [`docs/categories.md`](categories.md) untuk daftar lengkap BU, kategori, o
 
 ### Yang Belum Diputuskan
 
-1. **Hubungan ke `Tr_Ba_Main_New`** — pivot tabel `tr_ba_kategori_d` (BA × kategori dengan opsi_kode) belum dirancang. Bisa hadir saat refactor `Cek*` flags.
-2. **Konsolidasi master LAKA legacy** (`ms_jenis_laka`, `ms_faktor_laka`, dll.) — diabsorb ke kategori universal atau dipertahankan?
-3. **Mapping BU × Kategori draft** — perlu validasi user sebelum di-seed.
+1. **Konsolidasi master LAKA legacy** (`ms_jenis_laka`, `ms_faktor_laka`, dll.) — diabsorb ke kategori universal atau dipertahankan?
 
 ### Status
 
-✅ **Migration file dibuat**: [`database/migrations/2026_05_19_200000_create_ba_kategori_system.php`](../database/migrations/2026_05_19_200000_create_ba_kategori_system.php) (5 tabel + seed). **Belum di-run** — `php artisan migrate` harus dijalankan manual di environment yang dipilih.
+✅ **Live**: Migrations 2026_05_19_200000 + 2026_05_20_080000-200000 sudah di-run di local. Lihat `git log` di `database/migrations/` untuk timeline.
 
 ### Tabel yang Dibuat (Schema Final)
 
 ```
-ms_business_unit               id PK, kode UQ, nama, deskripsi, active
+ms_konteks                     id PK, kode UQ, nama, deskripsi, active
 ms_ba_kategori                 id PK, kode UQ, nama, parent_id (self FK), active
-ms_bu_kategori_mapping         bu_id FK, kategori_id FK, level ENUM (UQ bu+kat)
-ms_ba_kategori_opsi            id PK, kategori_id FK, kode, deskripsi, sort_order
+ms_konteks_kategori_mapping    konteks_id FK, kategori_id FK, level ENUM (UQ konteks+kat)
+ms_ba_kategori_opsi            id PK, deskripsi, active
+ms_kategori_opsi_mapping       kategori_id FK, opsi_id FK, kode, sort_order, active (N:M)
+ms_opsi_konteks_mapping        opsi_id FK, konteks_id FK (tag konteks langsung di opsi)
 tr_ba_kategori_d               id PK, tr_ba_main_code, kategori_id FK, opsi_id FK
+tr_ba_kronologi                id PK, tr_ba_main_code, urutan, detail
+tr_ba_request_revisi           id PK, tr_ba_main_code, kode, alasan
+tr_ba_salah_isi_detail         id PK, tr_ba_code_request, field_salah, value_salah, field_benar, value_benar
+ms_cek_flag_mapping            id PK, legacy_flag UQ, kategori_kode FK, opsi_kode, active, notes
 ```
 
 ### Data ter-seed
 
 | Tabel | Rows |
 |---|---|
-| `ms_business_unit` | 3 (LAKA, FNB, OP_HR) |
+| `ms_konteks` | 4 (LAKA, FNB, OP_HR, REVISI) |
 | `ms_ba_kategori` | 14 kategori universal |
-| `ms_bu_kategori_mapping` | 35 mapping (draft level wajib/disarankan/opsional) |
-| `ms_ba_kategori_opsi` | 43 opsi (untuk 7 kategori yang sudah ada data) |
-| `tr_ba_kategori_d` | 0 (diisi runtime saat user submit BA) |
+| `ms_konteks_kategori_mapping` | 35 mapping (level wajib/disarankan/opsional) |
+| `ms_ba_kategori_opsi` | 35 opsi unik (universal, multi-parent via pivot) |
+| `ms_cek_flag_mapping` | 11 mapping default (CekPelanggaran→PELANGGARAN_SOP, dll.) |
+| `tr_ba_kategori_d` | 0 (diisi runtime saat user submit BA + saat artisan migrate Cek*) |
 
 ### Catatan Implementasi
 
 7 kategori (`Fraud`, `Temuan Kasus`, `Indisipliner_Etika`, `Menolak_Tugas`, `Kriminal`, `Komplain_Customer`, `Kesalahan_Admin`) sengaja **tanpa opsi awal** — admin isi via UI master kategori nanti.
 
 Foreign key cascading:
-- Hapus BU → cascade hapus mapping
-- Hapus kategori → cascade hapus mapping & opsi
-- Hapus opsi → set null di pivot
-- Hapus kategori dengan pivot aktif → RESTRICT (tidak bisa hapus)
+- Hapus Konteks → cascade hapus mapping
+- Hapus kategori → cascade hapus mapping & opsi-mapping
+- Hapus opsi → set null di pivot `tr_ba_kategori_d`
+- Hapus kategori dengan pivot aktif → RESTRICT
+
+### Migrasi Cek* Legacy (Artisan)
+
+```bash
+php artisan ba:migrate-cek-flags --dry-run    # preview
+php artisan ba:migrate-cek-flags --force      # eksekusi
+```
+
+Menggunakan mapping dari `ms_cek_flag_mapping` (admin bisa edit via UI `/master/cek-mapping`). Anti-duplicate: skip BA yang sudah punya kategori_d rows.
+
+### Tabel Tambahan (Edit + Audit)
+
+- `Tr_Ba_Main_New.edit_allowed BOOLEAN DEFAULT 0` (migration `2026_05_20_190000`) — admin toggle untuk izinkan creator edit BA.
+- Permission edit BA: admin role SELALU bisa edit; creator bisa edit bila `edit_allowed=true`.
