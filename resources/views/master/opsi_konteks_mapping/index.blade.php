@@ -2,33 +2,83 @@
 
 @section('title', 'Mapping Opsi × Konteks')
 
+@section('vendor-style')
+<link rel="stylesheet" href="{{ asset('assets/vendor/libs/select2/select2.css') }}" />
+@endsection
+
+@section('vendor-script')
+<script src="{{ asset('assets/vendor/libs/select2/select2.js') }}"></script>
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 
-  <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center">
+  <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span><span class="text-muted fw-light">Master /</span> Mapping Opsi × Konteks</span>
     <a href="{{ route('master.mapping.index') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bx bx-grid-alt"></i> Mapping Konteks × Kategori
+      <i class="bx bx-grid-alt"></i> Konteks × Kategori
     </a>
   </h4>
 
   <div class="alert alert-info small">
-    <strong>Tag opsi langsung ke konteks.</strong>
-    Wizard akan menampilkan opsi hanya bila konteks yang dipilih user match dengan tag di sini.
-    1 opsi bisa di-tag ke multiple konteks (mis. "Alat rusak" bisa untuk LAKA + FNB + OP_HR).
-    <span class="badge bg-success ms-1">☑</span> = aktif (opsi muncul di konteks ini).
-    Klik checkbox untuk auto-save.
+    Tag opsi langsung ke konteks. Wizard menampilkan opsi hanya bila konteks user match tag di sini.
+    Kolom <strong>Parent kategori</strong> bisa di-edit langsung (Select2 multi). Semua auto-save.
   </div>
 
+  {{-- ============ FILTER BAR ============ --}}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Cari opsi</label>
+          <input type="text" id="filter-search" class="form-control form-control-sm" placeholder="Ketik deskripsi opsi...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Filter kategori (multi)</label>
+          <select id="filter-kategori" class="form-select form-select-sm" multiple>
+            @foreach ($allKategori as $kat)
+              <option value="{{ $kat->id }}">{{ $kat->kode }} — {{ $kat->nama }}</option>
+            @endforeach
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Filter konteks (tagged)</label>
+          <div>
+            @foreach ($konteksList as $k)
+              <button type="button" class="btn btn-sm btn-outline-primary me-1 mb-1 filter-konteks-btn"
+                      data-konteks="{{ $k->id }}">
+                {{ $k->kode }}
+              </button>
+            @endforeach
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1">&nbsp;</label>
+          <div class="form-check">
+            <input type="checkbox" id="filter-orphan" class="form-check-input">
+            <label class="form-check-label small" for="filter-orphan">Hanya tanpa kategori</label>
+          </div>
+        </div>
+        <div class="col-12 mt-1">
+          <button type="button" class="btn btn-link btn-sm p-0" id="btn-reset-filter">
+            <i class="bx bx-reset"></i> Reset filter
+          </button>
+          <span class="text-muted small ms-3" id="visible-count">{{ $opsi->count() }} dari {{ $opsi->count() }} opsi</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- ============ MATRIX TABLE ============ --}}
   <div class="card">
     <div class="card-body table-responsive p-0">
-      <table class="table table-bordered table-sm align-middle mb-0">
+      <table class="table table-bordered table-sm align-middle mb-0" id="opsi-matrix">
         <thead class="table-light sticky-top" style="z-index:5">
           <tr>
-            <th style="min-width:280px">Opsi (deskripsi)</th>
-            <th style="min-width:200px">Parent kategori</th>
+            <th style="min-width:220px">Opsi (deskripsi)</th>
+            <th style="min-width:280px">Parent kategori (edit langsung)</th>
             @foreach ($konteksList as $k)
-              <th class="text-center" style="min-width:120px">
+              <th class="text-center" style="min-width:90px">
                 {{ $k->kode }}<br>
                 <small class="text-muted fw-normal">{{ $k->nama }}</small>
               </th>
@@ -37,15 +87,25 @@
         </thead>
         <tbody>
           @forelse ($opsi as $o)
-            @php $taggedKonteks = $mappings->get($o->id, []); @endphp
-            <tr>
+            @php
+              $taggedKonteks = $mappings->get($o->id, []);
+              $attachedKatIds = $o->kategoris->pluck('id')->all();
+            @endphp
+            <tr class="opsi-row"
+                data-opsi-id="{{ $o->id }}"
+                data-deskripsi="{{ strtolower($o->deskripsi) }}"
+                data-kategori-ids="{{ implode(',', $attachedKatIds) }}"
+                data-konteks-ids="{{ implode(',', $taggedKonteks) }}">
               <td><strong>{{ $o->deskripsi }}</strong></td>
               <td>
-                @forelse ($o->kategoris as $kat)
-                  <span class="badge bg-label-secondary small">{{ $kat->kode }}</span>
-                @empty
-                  <small class="text-muted">— orphan —</small>
-                @endforelse
+                <select class="form-select form-select-sm kategori-multi" multiple data-opsi-id="{{ $o->id }}"
+                        style="width:100%">
+                  @foreach ($allKategori as $kat)
+                    <option value="{{ $kat->id }}" {{ in_array($kat->id, $attachedKatIds) ? 'selected' : '' }}>
+                      {{ $kat->kode }} — {{ $kat->nama }}
+                    </option>
+                  @endforeach
+                </select>
               </td>
               @foreach ($konteksList as $k)
                 <td class="text-center">
@@ -69,59 +129,160 @@
       </table>
     </div>
     <div class="card-footer d-flex justify-content-between align-items-center">
-      <span id="save-status" class="text-muted small">Perubahan disimpan otomatis saat checkbox di-toggle.</span>
+      <span id="save-status" class="text-muted small">Perubahan disimpan otomatis.</span>
       <small class="text-muted">{{ $opsi->count() }} opsi × {{ $konteksList->count() }} konteks</small>
     </div>
   </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const csrf   = '{{ csrf_token() }}';
-  const url    = '{{ route('master.opsi-mapping.update') }}';
-  const status = document.getElementById('save-status');
+<style>
+  .opsi-row.hidden-filter { display: none; }
+  .filter-konteks-btn.active { background: #696cff; color: white; }
+</style>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const csrf = '{{ csrf_token() }}';
+  const urlToggle = '{{ route('master.opsi-mapping.update') }}';
+  const urlSync   = '{{ route('master.opsi-mapping.sync-kategori') }}';
+  const status    = document.getElementById('save-status');
+  const visibleCt = document.getElementById('visible-count');
+  const totalOpsi = {{ $opsi->count() }};
+
+  // ===== Select2 init untuk semua kategori multi =====
+  $('.kategori-multi').select2({
+    width: '100%',
+    placeholder: 'Pilih kategori (multi)...',
+    closeOnSelect: false,
+  });
+
+  $('#filter-kategori').select2({
+    width: '100%',
+    placeholder: 'Semua kategori',
+    allowClear: true,
+  });
+
+  // ===== AJAX: toggle checkbox konteks =====
   document.querySelectorAll('.opsi-konteks-toggle').forEach(cb => {
     cb.addEventListener('change', async (e) => {
       const opsiId    = e.target.dataset.opsi;
       const konteksId = e.target.dataset.konteks;
       const active    = e.target.checked ? 1 : 0;
-
-      status.textContent = 'Menyimpan...';
-      status.className = 'text-info small';
       e.target.disabled = true;
-
+      setStatus('Menyimpan...', 'info');
       try {
-        const res = await fetch(url, {
+        const res = await fetch(urlToggle, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-          },
-          body: new URLSearchParams({
-            _token: csrf,
-            opsi_id: opsiId,
-            konteks_id: konteksId,
-            active: active,
-          }),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+          body: new URLSearchParams({ _token: csrf, opsi_id: opsiId, konteks_id: konteksId, active: active }),
         });
         const data = await res.json();
-        if (data.ok) {
-          status.textContent = 'Tersimpan (' + data.action + ' opsi=' + opsiId + ' konteks=' + konteksId + ').';
-          status.className = 'text-success small';
-        } else {
-          throw new Error('Gagal simpan');
-        }
+        if (!data.ok) throw new Error('Save gagal');
+        setStatus(`Tersimpan (${data.action} opsi=${opsiId} konteks=${konteksId}).`, 'success');
+        // Update data attribute for filter
+        updateRowKonteksData(opsiId, konteksId, active === 1);
+        applyFilter();
       } catch (err) {
-        status.textContent = 'ERROR: ' + err.message;
-        status.className = 'text-danger small';
-        e.target.checked = !e.target.checked; // revert
-      } finally {
-        e.target.disabled = false;
-      }
+        setStatus('ERROR: ' + err.message, 'danger');
+        e.target.checked = !e.target.checked;
+      } finally { e.target.disabled = false; }
     });
   });
+
+  // ===== AJAX: sync kategori (Select2 change) =====
+  $('.kategori-multi').on('change', async function () {
+    const opsiId = $(this).data('opsi-id');
+    const katIds = $(this).val() || [];
+    setStatus('Menyimpan kategori...', 'info');
+    try {
+      const formData = new URLSearchParams();
+      formData.append('_token', csrf);
+      formData.append('opsi_id', opsiId);
+      katIds.forEach(k => formData.append('kategori_ids[]', k));
+      const res = await fetch(urlSync, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error('Sync gagal');
+      setStatus(`Kategori opsi=${opsiId} → ${data.count} kategori.`, 'success');
+      // Update row data-kategori-ids for filter
+      $(`.opsi-row[data-opsi-id="${opsiId}"]`).attr('data-kategori-ids', katIds.join(','));
+      applyFilter();
+    } catch (err) {
+      setStatus('ERROR: ' + err.message, 'danger');
+    }
+  });
+
+  // ===== FILTER LOGIC (client-side) =====
+  const filterSearch  = document.getElementById('filter-search');
+  const filterOrphan  = document.getElementById('filter-orphan');
+  const $filterKat    = $('#filter-kategori');
+  const konteksBtns   = document.querySelectorAll('.filter-konteks-btn');
+  const activeKonteks = new Set();
+
+  filterSearch.addEventListener('input', applyFilter);
+  filterOrphan.addEventListener('change', applyFilter);
+  $filterKat.on('change', applyFilter);
+  konteksBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.konteks;
+      if (activeKonteks.has(id)) {
+        activeKonteks.delete(id);
+        btn.classList.remove('active');
+      } else {
+        activeKonteks.add(id);
+        btn.classList.add('active');
+      }
+      applyFilter();
+    });
+  });
+
+  document.getElementById('btn-reset-filter').addEventListener('click', () => {
+    filterSearch.value = '';
+    filterOrphan.checked = false;
+    $filterKat.val(null).trigger('change');
+    activeKonteks.clear();
+    konteksBtns.forEach(b => b.classList.remove('active'));
+    applyFilter();
+  });
+
+  function applyFilter() {
+    const search    = (filterSearch.value || '').toLowerCase().trim();
+    const orphan    = filterOrphan.checked;
+    const filterKat = ($filterKat.val() || []).map(String);
+
+    let visible = 0;
+    document.querySelectorAll('.opsi-row').forEach(row => {
+      const desc  = row.dataset.deskripsi;
+      const kats  = (row.dataset.kategoriIds || '').split(',').filter(Boolean);
+      const ktxs  = (row.dataset.konteksIds  || '').split(',').filter(Boolean);
+
+      let match = true;
+      if (search && !desc.includes(search)) match = false;
+      if (orphan && kats.length > 0) match = false;
+      if (filterKat.length > 0 && !filterKat.some(k => kats.includes(k))) match = false;
+      if (activeKonteks.size > 0 && ![...activeKonteks].every(k => ktxs.includes(k))) match = false;
+
+      row.classList.toggle('hidden-filter', !match);
+      if (match) visible++;
+    });
+    visibleCt.textContent = `${visible} dari ${totalOpsi} opsi`;
+  }
+
+  function updateRowKonteksData(opsiId, konteksId, isAttached) {
+    const row = document.querySelector(`.opsi-row[data-opsi-id="${opsiId}"]`);
+    if (!row) return;
+    const ktxs = new Set((row.dataset.konteksIds || '').split(',').filter(Boolean));
+    if (isAttached) ktxs.add(String(konteksId)); else ktxs.delete(String(konteksId));
+    row.dataset.konteksIds = [...ktxs].join(',');
+  }
+
+  function setStatus(text, type) {
+    status.textContent = text;
+    status.className = 'small text-' + (type === 'info' ? 'info' : (type === 'danger' ? 'danger' : 'success'));
+  }
 });
 </script>
 @endsection

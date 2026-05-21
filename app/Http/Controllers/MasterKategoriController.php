@@ -255,20 +255,25 @@ class MasterKategoriController extends Controller
     public function opsiKonteksMatrix()
     {
         $konteksList = Konteks::orderBy('id')->get();
-        // Load opsi + show kategori parent untuk konteks (debugging help)
+        // Load opsi + parent kategori (untuk inline edit + filter)
         $opsi = BaKategoriOpsi::with(['kategoris' => fn($q) => $q->orderBy('nama')])
             ->where('active', true)
             ->orderBy('deskripsi')
             ->get();
 
-        // Existing mapping: opsi_id + konteks_id (boolean — kalau exist = active)
+        // Existing mapping: opsi_id → [konteks_id...]
         $mappings = DB::table('ms_opsi_konteks_mapping')
             ->select('opsi_id', 'konteks_id')
             ->get()
             ->groupBy('opsi_id')
             ->map(fn($rows) => $rows->pluck('konteks_id')->all());
 
-        return view('master.opsi_konteks_mapping.index', compact('konteksList', 'opsi', 'mappings'));
+        // Untuk dropdown kategori multi-select (inline edit) + filter
+        $allKategori = BaKategori::where('active', true)->orderBy('nama')->get(['id', 'kode', 'nama']);
+
+        return view('master.opsi_konteks_mapping.index', compact(
+            'konteksList', 'opsi', 'mappings', 'allKategori'
+        ));
     }
 
     public function opsiKonteksUpdate(Request $request)
@@ -305,6 +310,59 @@ class MasterKategoriController extends Controller
             ->where('konteks_id', $konteksId)
             ->delete();
         return response()->json(['ok' => true, 'action' => 'detached']);
+    }
+
+    /**
+     * Sync kategori untuk 1 opsi (inline edit dari matrix opsi-konteks).
+     * Replace-all strategy: kirim full list kategori_ids, sisanya di-delete.
+     * Auto-default kode = 'OP' + opsi_id + '_' + kategori_id, sort_order = max+1.
+     */
+    public function syncOpsiKategori(Request $request)
+    {
+        $request->validate([
+            'opsi_id'       => ['required', 'integer', 'exists:ms_ba_kategori_opsi,id'],
+            'kategori_ids'  => ['nullable', 'array'],
+            'kategori_ids.*'=> ['integer', 'exists:ms_ba_kategori,id'],
+        ]);
+
+        $opsiId       = (int) $request->opsi_id;
+        $newKatIds    = collect($request->input('kategori_ids', []))->map(fn($v) => (int) $v)->unique()->all();
+
+        DB::transaction(function () use ($opsiId, $newKatIds) {
+            $existing = DB::table('ms_kategori_opsi_mapping')
+                ->where('opsi_id', $opsiId)
+                ->pluck('kategori_id')->all();
+
+            $toAdd    = array_diff($newKatIds, $existing);
+            $toRemove = array_diff($existing, $newKatIds);
+
+            if (!empty($toRemove)) {
+                DB::table('ms_kategori_opsi_mapping')
+                    ->where('opsi_id', $opsiId)
+                    ->whereIn('kategori_id', $toRemove)
+                    ->delete();
+            }
+
+            foreach ($toAdd as $katId) {
+                $maxOrder = DB::table('ms_kategori_opsi_mapping')
+                    ->where('kategori_id', $katId)->max('sort_order') ?? 0;
+                DB::table('ms_kategori_opsi_mapping')->insert([
+                    'kategori_id' => $katId,
+                    'opsi_id'     => $opsiId,
+                    'kode'        => 'OP' . $opsiId,
+                    'sort_order'  => $maxOrder + 1,
+                    'active'      => true,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+            }
+        });
+
+        return response()->json([
+            'ok'    => true,
+            'opsi'  => $opsiId,
+            'count' => count($newKatIds),
+        ]);
     }
 
     // ============================================================
