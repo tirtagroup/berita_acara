@@ -73,6 +73,11 @@
               "slug": "forms-basic-inputs"
             },
             {
+              "url": "/master/opsi-konteks-mapping",
+              "name": "Opsi × Konteks Mapping",
+              "slug": "forms-basic-inputs"
+            },
+            {
               "url": "/master/cek-mapping",
               "name": "Cek* Flag → Kategori",
               "slug": "forms-basic-inputs"

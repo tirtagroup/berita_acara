@@ -768,6 +768,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/update', [MasterKategoriController::class, 'mappingUpdate'])->name('update');
     });
 
+    // Opsi × Konteks matrix (ms_opsi_konteks_mapping)
+    Route::prefix('master/opsi-konteks-mapping')->name('master.opsi-mapping.')->group(function () {
+        Route::get('/',        [MasterKategoriController::class, 'opsiKonteksMatrix'])->name('index');
+        Route::post('/update', [MasterKategoriController::class, 'opsiKonteksUpdate'])->name('update');
+    });
+
     // Master Cek Flag mapping (legacy Tr_Ba_Main_New.Cek* → kategori v2)
     Route::prefix('master/cek-mapping')->name('master.cek-mapping.')->group(function () {
         Route::get('/',                  [MasterCekMappingController::class, 'index'])->name('index');

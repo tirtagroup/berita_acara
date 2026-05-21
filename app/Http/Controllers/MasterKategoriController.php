@@ -248,6 +248,66 @@ class MasterKategoriController extends Controller
     }
 
     // ============================================================
+    // OPSI × KONTEKS MAPPING — matrix admin (ms_opsi_konteks_mapping)
+    // Beda dengan kategori_konteks: tidak ada level, cuma on/off (checkbox).
+    // ============================================================
+
+    public function opsiKonteksMatrix()
+    {
+        $konteksList = Konteks::orderBy('id')->get();
+        // Load opsi + show kategori parent untuk konteks (debugging help)
+        $opsi = BaKategoriOpsi::with(['kategoris' => fn($q) => $q->orderBy('nama')])
+            ->where('active', true)
+            ->orderBy('deskripsi')
+            ->get();
+
+        // Existing mapping: opsi_id + konteks_id (boolean — kalau exist = active)
+        $mappings = DB::table('ms_opsi_konteks_mapping')
+            ->select('opsi_id', 'konteks_id')
+            ->get()
+            ->groupBy('opsi_id')
+            ->map(fn($rows) => $rows->pluck('konteks_id')->all());
+
+        return view('master.opsi_konteks_mapping.index', compact('konteksList', 'opsi', 'mappings'));
+    }
+
+    public function opsiKonteksUpdate(Request $request)
+    {
+        $request->validate([
+            'opsi_id'    => ['required', 'integer', 'exists:ms_ba_kategori_opsi,id'],
+            'konteks_id' => ['required', 'integer', 'exists:ms_konteks,id'],
+            'active'     => ['required', 'boolean'],
+        ]);
+
+        $opsiId    = (int) $request->opsi_id;
+        $konteksId = (int) $request->konteks_id;
+        $active    = $request->boolean('active');
+
+        if ($active) {
+            // Insert (upsert pattern via insertOrIgnore)
+            $exists = DB::table('ms_opsi_konteks_mapping')
+                ->where('opsi_id', $opsiId)
+                ->where('konteks_id', $konteksId)
+                ->exists();
+            if (!$exists) {
+                DB::table('ms_opsi_konteks_mapping')->insert([
+                    'opsi_id'    => $opsiId,
+                    'konteks_id' => $konteksId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            return response()->json(['ok' => true, 'action' => 'attached']);
+        }
+
+        DB::table('ms_opsi_konteks_mapping')
+            ->where('opsi_id', $opsiId)
+            ->where('konteks_id', $konteksId)
+            ->delete();
+        return response()->json(['ok' => true, 'action' => 'detached']);
+    }
+
+    // ============================================================
     // OPSI GLOBAL (lintas kategori — multi-parent picker)
     // ============================================================
 
