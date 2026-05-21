@@ -45,9 +45,10 @@
         <div class="col-md-1">
           <label class="form-label">Per pg</label>
           <select name="per_page" class="form-select">
-            <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
-            <option value="25" {{ $perPage == 25 ? 'selected' : '' }}>25</option>
-            <option value="50" {{ $perPage == 50 ? 'selected' : '' }}>50</option>
+            <option value="10"  {{ $perPage == 10  ? 'selected' : '' }}>10</option>
+            <option value="25"  {{ $perPage == 25  ? 'selected' : '' }}>25</option>
+            <option value="50"  {{ $perPage == 50  ? 'selected' : '' }}>50</option>
+            <option value="100" {{ $perPage == 100 ? 'selected' : '' }}>100</option>
           </select>
         </div>
         <div class="col-md-2">

@@ -29,7 +29,7 @@ class BeritaAcaraV2Controller extends Controller
         $tglAwal     = $request->input('tgl_awal',  Carbon::now()->startOfMonth()->format('Y-m-d'));
         $tglAkhir    = $request->input('tgl_akhir', Carbon::now()->format('Y-m-d'));
         $kategoriId  = $request->input('kategori_id');
-        $perPage     = in_array((int) $request->input('per_page'), [10, 25, 50]) ? (int) $request->input('per_page') : 10;
+        $perPage     = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 50;
 
         $konteksList = Konteks::where('active', true)->orderBy('id')->get();
         $kategoriList  = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
@@ -74,7 +74,7 @@ class BeritaAcaraV2Controller extends Controller
     /**
      * Hitung statistik 1 slice (semua / per konteks).
      */
-    private function dashboardSlice(string $from, string $to, ?string $konteksKode, $kategoriId = null, int $perPage = 10): array
+    private function dashboardSlice(string $from, string $to, ?string $konteksKode, $kategoriId = null, int $perPage = 50): array
     {
         $base = DB::table('Tr_Ba_Main_New as ba')
                   ->whereBetween('ba.Date_BA', [$from, $to]);
