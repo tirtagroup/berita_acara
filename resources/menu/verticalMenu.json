@@ -58,6 +58,11 @@
           "slug": "forms-basic-inputs",
           "submenu": [
             {
+              "url": "/master/konteks",
+              "name": "Daftar Konteks",
+              "slug": "forms-basic-inputs"
+            },
+            {
               "url": "/master/kategori",
               "name": "Daftar Kategori",
               "slug": "forms-basic-inputs"

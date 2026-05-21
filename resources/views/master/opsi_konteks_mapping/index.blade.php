@@ -15,9 +15,20 @@
 
   <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span><span class="text-muted fw-light">Master /</span> Mapping Opsi × Konteks</span>
-    <a href="{{ route('master.mapping.index') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bx bx-grid-alt"></i> Konteks × Kategori
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modal-add-opsi">
+        <i class="bx bx-plus"></i> Opsi Baru
+      </button>
+      <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal-add-kategori">
+        <i class="bx bx-plus"></i> Kategori Baru
+      </button>
+      <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modal-add-konteks">
+        <i class="bx bx-plus"></i> Konteks Baru
+      </button>
+      <a href="{{ route('master.mapping.index') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bx bx-grid-alt"></i> Konteks × Kategori
+      </a>
+    </div>
   </h4>
 
   <div class="alert alert-info small">
@@ -131,6 +142,112 @@
     <div class="card-footer d-flex justify-content-between align-items-center">
       <span id="save-status" class="text-muted small">Perubahan disimpan otomatis.</span>
       <small class="text-muted">{{ $opsi->count() }} opsi × {{ $konteksList->count() }} konteks</small>
+    </div>
+  </div>
+</div>
+
+{{-- ============ MODAL: ADD OPSI ============ --}}
+<div class="modal fade" id="modal-add-opsi" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="form-add-opsi">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">Tambah Opsi Baru</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info small">
+            Setelah dibuat, opsi muncul di matrix. Anda bisa attach ke kategori + konteks lewat row baru.
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Deskripsi <span class="text-danger">*</span></label>
+            <textarea name="deskripsi" class="form-control" rows="2" maxlength="500" required
+                      placeholder="mis. 'Lupa pakai helm', 'Alat rusak', 'Pelanggaran SOP'"></textarea>
+            <small class="text-muted">UNIQUE — case-insensitive.</small>
+          </div>
+          <div id="opsi-modal-error" class="text-danger small"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan & Reload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- ============ MODAL: ADD KATEGORI ============ --}}
+<div class="modal fade" id="modal-add-kategori" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="form-add-kategori">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">Tambah Kategori Baru</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-md-5">
+              <label class="form-label">Kode <span class="text-danger">*</span></label>
+              <input type="text" name="kode" class="form-control" maxlength="50" required
+                     pattern="[A-Z0-9_]+" placeholder="PELANGGARAN_SOP">
+              <small class="text-muted">Huruf besar + underscore.</small>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label">Nama <span class="text-danger">*</span></label>
+              <input type="text" name="nama" class="form-control" maxlength="100" required
+                     placeholder="Pelanggaran SOP">
+            </div>
+          </div>
+          <div id="kategori-modal-error" class="text-danger small mt-2"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan & Reload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{{-- ============ MODAL: ADD KONTEKS ============ --}}
+<div class="modal fade" id="modal-add-konteks" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="form-add-konteks">
+        @csrf
+        <div class="modal-header">
+          <h5 class="modal-title">Tambah Konteks Baru</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning small">
+            Konteks baru = kolom baru di matrix. Setelah save, page reload otomatis.
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label">Kode <span class="text-danger">*</span></label>
+              <input type="text" name="kode" class="form-control" maxlength="50" required
+                     placeholder="LAKA, FNB, OP_HR, REVISI">
+            </div>
+            <div class="col-md-8">
+              <label class="form-label">Nama <span class="text-danger">*</span></label>
+              <input type="text" name="nama" class="form-control" maxlength="100" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Deskripsi</label>
+              <textarea name="deskripsi" class="form-control" rows="2" maxlength="255"></textarea>
+            </div>
+          </div>
+          <div id="konteks-modal-error" class="text-danger small mt-2"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan & Reload</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -283,6 +400,48 @@ document.addEventListener('DOMContentLoaded', function () {
     status.textContent = text;
     status.className = 'small text-' + (type === 'info' ? 'info' : (type === 'danger' ? 'danger' : 'success'));
   }
+
+  // ===== MODAL HANDLERS =====
+  async function submitModalForm(formId, errorElId, url) {
+    const form = document.getElementById(formId);
+    const errEl = document.getElementById(errorElId);
+    errEl.textContent = '';
+    const data = new FormData(form);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        body: data,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err.error || err.message || ('HTTP ' + res.status);
+        if (err.errors) {
+          errEl.textContent = Object.values(err.errors).flat().join(' · ');
+        } else {
+          errEl.textContent = msg;
+        }
+        return;
+      }
+      // Success → reload page
+      window.location.reload();
+    } catch (e) {
+      errEl.textContent = 'Network error: ' + e.message;
+    }
+  }
+
+  document.getElementById('form-add-opsi').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitModalForm('form-add-opsi', 'opsi-modal-error', '{{ route('master.opsi-mapping.quick-add-opsi') }}');
+  });
+  document.getElementById('form-add-kategori').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitModalForm('form-add-kategori', 'kategori-modal-error', '{{ route('master.kategori.store') }}');
+  });
+  document.getElementById('form-add-konteks').addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitModalForm('form-add-konteks', 'konteks-modal-error', '{{ route('master.konteks.store') }}');
+  });
 });
 </script>
 @endsection

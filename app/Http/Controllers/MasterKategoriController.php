@@ -37,7 +37,10 @@ class MasterKategoriController extends Controller
 
     public function store(StoreKategoriRequest $request)
     {
-        BaKategori::create($request->validated() + ['active' => $request->boolean('active', true)]);
+        $row = BaKategori::create($request->validated() + ['active' => $request->boolean('active', true)]);
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'id' => $row->id, 'kode' => $row->kode, 'nama' => $row->nama]);
+        }
         return redirect()->route('master.kategori.index')
                          ->with('success', 'Kategori berhasil dibuat.');
     }
@@ -71,6 +74,63 @@ class MasterKategoriController extends Controller
         $kategori = BaKategori::findOrFail($id);
         $kategori->update(['active' => !$kategori->active]);
         return back()->with('success', "Kategori '{$kategori->nama}' status diubah jadi " . ($kategori->active ? 'aktif' : 'nonaktif') . '.');
+    }
+
+    // ============================================================
+    // KONTEKS CRUD (ms_konteks)
+    // ============================================================
+
+    public function konteksIndex()
+    {
+        $items = Konteks::orderBy('id')->get();
+        return view('master.konteks.index', compact('items'));
+    }
+
+    public function konteksCreate()
+    {
+        return view('master.konteks.form', ['mode' => 'create', 'konteks' => null]);
+    }
+
+    public function konteksStore(Request $request)
+    {
+        $data = $this->validateKonteks($request);
+        $row = Konteks::create($data);
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'id' => $row->id, 'kode' => $row->kode, 'nama' => $row->nama]);
+        }
+        return redirect()->route('master.konteks.index')->with('success', 'Konteks dibuat.');
+    }
+
+    public function konteksEdit($id)
+    {
+        $konteks = Konteks::findOrFail($id);
+        return view('master.konteks.form', ['mode' => 'edit', 'konteks' => $konteks]);
+    }
+
+    public function konteksUpdate(Request $request, $id)
+    {
+        $konteks = Konteks::findOrFail($id);
+        $data = $this->validateKonteks($request, $id);
+        $konteks->update($data);
+        return redirect()->route('master.konteks.index')->with('success', 'Konteks diupdate.');
+    }
+
+    public function konteksToggle($id)
+    {
+        $konteks = Konteks::findOrFail($id);
+        $konteks->update(['active' => !$konteks->active]);
+        return back()->with('success', "Konteks '{$konteks->nama}' " . ($konteks->active ? 'aktif' : 'nonaktif') . '.');
+    }
+
+    protected function validateKonteks(Request $request, ?int $id = null): array
+    {
+        return $request->validate([
+            'kode'      => ['required', 'string', 'max:50',
+                Rule::unique('ms_konteks', 'kode')->ignore($id)],
+            'nama'      => ['required', 'string', 'max:100'],
+            'deskripsi' => ['nullable', 'string', 'max:255'],
+            'active'    => ['nullable', 'boolean'],
+        ]) + ['active' => $request->boolean('active', true)];
     }
 
     /**
@@ -310,6 +370,40 @@ class MasterKategoriController extends Controller
             ->where('konteks_id', $konteksId)
             ->delete();
         return response()->json(['ok' => true, 'action' => 'detached']);
+    }
+
+    /**
+     * Quick-add opsi (dari modal di matrix). Cuma deskripsi.
+     * Kategori bisa di-attach kemudian via Select2 inline di matrix.
+     */
+    public function quickAddOpsi(Request $request)
+    {
+        $request->validate([
+            'deskripsi' => ['required', 'string', 'max:500'],
+        ]);
+
+        // Anti-duplicate (case-insensitive deskripsi)
+        $existing = BaKategoriOpsi::whereRaw('LOWER(TRIM(deskripsi)) = ?', [
+            mb_strtolower(trim($request->deskripsi))
+        ])->first();
+
+        if ($existing) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Opsi dengan deskripsi sama sudah ada (ID ' . $existing->id . ').',
+            ], 422);
+        }
+
+        $opsi = BaKategoriOpsi::create([
+            'deskripsi' => trim($request->deskripsi),
+            'active' => true,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'id' => $opsi->id,
+            'deskripsi' => $opsi->deskripsi,
+        ]);
     }
 
     /**

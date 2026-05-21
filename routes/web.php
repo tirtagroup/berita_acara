@@ -773,6 +773,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/',               [MasterKategoriController::class, 'opsiKonteksMatrix'])->name('index');
         Route::post('/update',        [MasterKategoriController::class, 'opsiKonteksUpdate'])->name('update');
         Route::post('/sync-kategori', [MasterKategoriController::class, 'syncOpsiKategori'])->name('sync-kategori');
+        Route::post('/quick-add-opsi',[MasterKategoriController::class, 'quickAddOpsi'])->name('quick-add-opsi');
+    });
+
+    // Master Konteks CRUD (ms_konteks)
+    Route::prefix('master/konteks')->name('master.konteks.')->group(function () {
+        Route::get('/',               [MasterKategoriController::class, 'konteksIndex'])->name('index');
+        Route::get('/create',         [MasterKategoriController::class, 'konteksCreate'])->name('create');
+        Route::post('/',              [MasterKategoriController::class, 'konteksStore'])->name('store');
+        Route::get('/{id}/edit',      [MasterKategoriController::class, 'konteksEdit'])->name('edit');
+        Route::put('/{id}',           [MasterKategoriController::class, 'konteksUpdate'])->name('update');
+        Route::patch('/{id}/toggle',  [MasterKategoriController::class, 'konteksToggle'])->name('toggle');
     });
 
     // Master Cek Flag mapping (legacy Tr_Ba_Main_New.Cek* → kategori v2)
