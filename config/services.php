@@ -30,4 +30,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'wa_qontak' => [
+        'token'                  => env('WA_QONTAK_TOKEN'),
+        'refresh_token'          => env('WA_QONTAK_REFRESH_TOKEN'),
+        'channel_integration_id' => env('WA_QONTAK_CHANNEL_INTEGRATION_ID'),
+        'sender_number'          => env('WA_QONTAK_SENDER_NUMBER'),
+        'template_id'            => env('WA_QONTAK_TEMPLATE_ID'),
+        'numbers'                => env('WA_QONTAK_NUMBERS'),
+        'verify_ssl'             => env('WA_QONTAK_VERIFY_SSL', true),
+    ],
+
 ];
