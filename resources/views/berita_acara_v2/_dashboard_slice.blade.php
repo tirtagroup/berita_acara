@@ -104,15 +104,17 @@
 <div class="card mb-3">
   <div class="card-header"><h5 class="card-title m-0">BA Terbaru ({{ $slice['recent']->count() }})</h5></div>
   <div class="table-responsive">
-    <table class="table table-sm table-hover">
+    <table class="table table-sm table-hover recent-ba-table" id="recent-ba-table-{{ $tabId }}">
       <thead>
         <tr>
-          <th>Tanggal</th>
+          <th>Tanggal BA</th>
           <th>Kode BA</th>
           <th>Pelapor</th>
           <th>Pelaku</th>
           <th>Konteks</th>
           <th>Deskripsi</th>
+          <th>PICA Code</th>
+          <th>PICA Tanggal</th>
         </tr>
       </thead>
       <tbody>
@@ -145,9 +147,30 @@
             </td>
             <td><span class="badge bg-label-primary">{{ $r->konteks }}</span></td>
             <td><small>{{ \Illuminate\Support\Str::limit($r->deskripsi, 60) }}</small></td>
+            <td>
+              @if (!empty($r->pica_kode))
+                <a href="{{ route('pica-v2.discussion', ['kode' => $r->pica_kode]) }}"
+                   title="Lihat PICA discussion">
+                  <code class="small">{{ $r->pica_kode }}</code>
+                </a>
+              @else
+                <a href="{{ route('pica-v2.create', ['ba_code' => $r->kode]) }}"
+                   class="btn btn-xs btn-outline-primary py-0 px-2"
+                   title="Buat PICA tindak-lanjut dari BA ini">
+                  <i class="bx bx-plus"></i> Buat PICA
+                </a>
+              @endif
+            </td>
+            <td>
+              @if (!empty($r->pica_date))
+                <small>{{ \Carbon\Carbon::parse($r->pica_date)->format('Y-m-d') }}</small>
+              @else
+                <small class="text-muted">—</small>
+              @endif
+            </td>
           </tr>
         @empty
-          <tr><td colspan="6" class="text-center text-muted py-3">Tidak ada BA pada rentang tanggal ini.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-3">Tidak ada BA pada rentang tanggal ini.</td></tr>
         @endforelse
       </tbody>
     </table>

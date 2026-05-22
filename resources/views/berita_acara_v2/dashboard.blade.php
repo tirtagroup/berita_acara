@@ -4,10 +4,12 @@
 
 @section('vendor-style')
 <link rel="stylesheet" href="{{ asset('assets/vendor/libs/apex-charts/apex-charts.css') }}" />
+<link rel="stylesheet" href="{{ asset('assets/vendor/libs/datatables-bs5/datatables.bootstrap5.css') }}" />
 @endsection
 
 @section('vendor-script')
 <script src="{{ asset('assets/vendor/libs/apex-charts/apexcharts.js') }}"></script>
+<script src="{{ asset('assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js') }}"></script>
 @endsection
 
 @section('content')
@@ -191,5 +193,64 @@
       }).render();
     }
   }
+
+  // ===== DataTables: sort + per-column filter pada Recent BA tables =====
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof $.fn.DataTable === 'undefined') return;
+
+    function initRecentBaDataTable(tableEl) {
+      // Tambah row header kedua untuk filter per kolom
+      const $table = $(tableEl);
+      if ($table.data('dt-initialized')) return;
+      $table.data('dt-initialized', true);
+
+      // Clone thead row untuk filter
+      const $thead = $table.find('thead');
+      const $filterRow = $('<tr class="dt-filter-row"></tr>');
+      $table.find('thead tr:first th').each(function (i) {
+        const label = $(this).text().trim();
+        // Skip filter di kolom yang tidak make sense untuk filter teks (mis. "Konteks" pakai dropdown)
+        $filterRow.append('<th><input type="text" class="form-control form-control-sm" placeholder="Filter ' + label + '..."></th>');
+      });
+      $thead.append($filterRow);
+
+      const dt = $table.DataTable({
+        paging: false,         // No pagination (max 50/100 rows from server)
+        info: false,
+        ordering: true,
+        searching: true,
+        dom: 't',              // hide top toolbar (cuma tampil table)
+        orderCellsTop: true,   // sorting on row pertama (label header), bukan row kedua (filter input)
+        order: [[0, 'desc']],  // default sort by tanggal BA desc
+      });
+
+      // Bind per-column filter
+      $filterRow.find('input').on('keyup change', function () {
+        const colIdx = $(this).parent().index();
+        dt.column(colIdx).search(this.value).draw();
+      });
+
+      // Prevent sort triggered by clicking filter input
+      $filterRow.find('input').on('click', function (e) { e.stopPropagation(); });
+    }
+
+    // Init untuk tab Overview (visible saat load)
+    const overviewTable = document.getElementById('recent-ba-table-overview');
+    if (overviewTable) initRecentBaDataTable(overviewTable);
+
+    // Init lazy saat tab konteks lain di-klik (kalau init langsung, DataTable hitung width salah karena hidden)
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
+      btn.addEventListener('shown.bs.tab', function (e) {
+        const targetId = e.target.getAttribute('data-bs-target');
+        if (targetId) {
+          const tab = document.querySelector(targetId);
+          if (tab) {
+            const table = tab.querySelector('.recent-ba-table');
+            if (table) initRecentBaDataTable(table);
+          }
+        }
+      });
+    });
+  });
 </script>
 @endsection

@@ -144,9 +144,20 @@ class BeritaAcaraV2Controller extends Controller
             ->limit(10)
             ->get();
 
-        // Recent BA — JOIN master_employees untuk dapatkan nama pelaku
+        // Recent BA — JOIN master_employees + Tr_PICA_Emp_h (latest PICA per BA via NoBA)
+        // Subquery: PICA terbaru per BA (1 BA bisa punya multiple PICA, ambil yg paling baru)
+        $latestPicaSub = DB::table('Tr_PICA_Emp_h')
+            ->select('NoBA', DB::raw('MAX(Date_PICA) as last_pica_date'))
+            ->whereNotNull('NoBA')
+            ->groupBy('NoBA');
+
         $recent = (clone $base)
             ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id')
+            ->leftJoinSub($latestPicaSub, 'lp', 'lp.NoBA', '=', 'ba.Tr_BA_Main_Code')
+            ->leftJoin('Tr_PICA_Emp_h as pica', function ($j) {
+                $j->on('pica.NoBA', '=', 'ba.Tr_BA_Main_Code')
+                  ->on('pica.Date_PICA', '=', 'lp.last_pica_date');
+            })
             ->select(
                 'ba.Tr_BA_Main_Code as kode',
                 'ba.Ms_BA_type_Code as konteks',
@@ -154,7 +165,9 @@ class BeritaAcaraV2Controller extends Controller
                 'ba.Ms_Emp_Code as emp_code',
                 'me.emp_name as emp_name',
                 'ba.Ms_Pelapor_Code as pelapor',
-                'ba.BA_Desc as deskripsi'
+                'ba.BA_Desc as deskripsi',
+                'pica.Tr_Pica_Emp_h_Code as pica_kode',
+                'pica.Date_PICA as pica_date'
             )
             ->orderByDesc('ba.rec_datecreated')
             ->limit($perPage)
