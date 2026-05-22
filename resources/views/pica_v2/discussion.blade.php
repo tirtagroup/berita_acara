@@ -8,21 +8,30 @@
   $statusColor = [
     'DRAFT'           => 'secondary',
     'PREPARING'       => 'info',
-    'WAITING_PELAKU'  => 'warning',
+    'MEETING'         => 'warning',
     'ACTION_PLANNING' => 'primary',
     'CLOSED'          => 'success',
+    'Belum Closing'   => 'dark',
   ][$status] ?? 'secondary';
 
   $canAddQ      = $isPic || $isDewan;
-  $canEditPhase = $isPic || $isPelaku;
   $isPreparing  = $status === 'PREPARING';
-  $isAnswering  = $status === 'WAITING_PELAKU';
+  $isMeeting    = $status === 'MEETING';
   $isLocked     = in_array($status, ['ACTION_PLANNING', 'CLOSED']);
+  $canAddQNow   = $canAddQ && in_array($status, ['PREPARING', 'MEETING']);
 
   // Group participants per role
   $picList    = $participants->where('role', 'pic')->values();
   $dewanList  = $participants->where('role', 'dewan')->values();
-  $pelakuList = $participants->where('role', 'pelaku')->values();
+
+  // Pernyataan signed?
+  $pernyataanSigned = !empty($pica->pernyataan_signed_at);
+  $pernyataanText   = $pica->pernyataan_pelaku ?: $pernyataanDefault;
+
+  // Gate check for MEETING → ACTION_PLANNING
+  $hasilFilled   = !empty(trim($pica->hasil_meeting_pic ?? ''));
+  $allWajibFinal = $totalWajib === 0 || $terisiWajib >= $totalWajib;
+  $canFinishMeeting = $isMeeting && $isPic && $hasilFilled && $allWajibFinal && $pernyataanSigned;
 @endphp
 
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -51,6 +60,11 @@
           <h5 class="mb-1">
             <i class="bx bx-clipboard"></i> {{ $pica->Tr_Pica_Emp_h_Code }}
             <span class="badge bg-label-{{ $statusColor }} ms-2">{{ $status }}</span>
+            @if ($pernyataanSigned)
+              <span class="badge bg-success ms-1" title="Pernyataan pelaku ditandatangani">
+                <i class="bx bx-check-shield"></i> Signed
+              </span>
+            @endif
           </h5>
           <small class="text-muted">
             Dibuat oleh <b>{{ $pica->User_Created }}</b>
@@ -60,6 +74,9 @@
               <a href="{{ route('berita-acara-v2.show') }}?kode={{ $baInduk->Tr_BA_Main_Code }}">
                 {{ $baInduk->Tr_BA_Main_Code }}
               </a>
+            @endif
+            @if ($pica->meeting_started_at)
+              · Meeting started {{ \Carbon\Carbon::parse($pica->meeting_started_at)->format('d M Y H:i') }}
             @endif
           </small>
         </div>
@@ -71,32 +88,34 @@
               <i class="bx bx-file"></i> Buka Report
             </a>
           @endif
-          @if ($isPreparing && $canEditPhase)
+
+          @if ($isPreparing && $isPic)
             <form method="POST" action="{{ route('pica-v2.phase.toggle', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
-                  onsubmit="return confirm('Kunci pertanyaan dan mulai fase pelaku menjawab?');">
+                  onsubmit="return confirm('Mulai meeting PICA sekarang? Pelaku akan bisa jawab pertanyaan + tanda tangan pernyataan.');">
               @csrf
-              <input type="hidden" name="target" value="WAITING_PELAKU">
+              <input type="hidden" name="target" value="MEETING">
               <button class="btn btn-warning btn-sm">
-                <i class="bx bx-lock"></i>
-                {{ $isPic ? 'Lock & kirim ke pelaku' : 'Saya siap menjawab' }}
+                <i class="bx bx-play-circle"></i> Mulai Meeting PICA
               </button>
             </form>
           @endif
 
-          @if ($isAnswering && $isPic)
-            <form method="POST" action="{{ route('pica-v2.phase.toggle', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
+          @if ($isMeeting && $isPic)
+            <form method="POST" action="{{ route('pica-v2.phase.toggle', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
+                  onsubmit="return confirm('Batalkan meeting & kembali ke PREPARING? Catatan meeting akan tetap tersimpan.');">
               @csrf
               <input type="hidden" name="target" value="BACK_TO_PREPARING">
-              <button class="btn btn-outline-secondary btn-sm" title="Kembalikan ke fase persiapan">
-                <i class="bx bx-arrow-back"></i> Balik ke PREPARING
+              <button class="btn btn-outline-secondary btn-sm">
+                <i class="bx bx-arrow-back"></i> Batalkan Meeting
               </button>
             </form>
             <form method="POST" action="{{ route('pica-v2.phase.toggle', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
-                  onsubmit="return confirm('Lanjut ke Action Planning? Pastikan semua wajib_jawab sudah final.');">
+                  onsubmit="return confirm('Selesai meeting & lanjut ke Action Planning?');">
               @csrf
               <input type="hidden" name="target" value="ACTION_PLANNING">
-              <button class="btn btn-primary btn-sm" {{ $totalWajib > 0 && $terisiWajib < $totalWajib ? 'disabled' : '' }}>
-                <i class="bx bx-right-arrow-alt"></i> Lanjut ke Action Plan
+              <button class="btn btn-success btn-sm" {{ !$canFinishMeeting ? 'disabled' : '' }}
+                      title="{{ $canFinishMeeting ? 'Selesai meeting → Action Planning' : 'Belum siap: cek gate di bawah' }}">
+                <i class="bx bx-check-double"></i> Selesai Meeting →
               </button>
             </form>
           @endif
@@ -133,20 +152,29 @@
         @endif
       </div>
 
-      {{-- Progress wajib_jawab --}}
-      @if ($totalWajib > 0 && !$isPreparing)
+      {{-- Progress wajib_jawab + gate check (saat MEETING) --}}
+      @if ($isMeeting)
         <hr>
-        <div class="d-flex justify-content-between align-items-center">
-          <small><strong>Progress wajib_jawab:</strong> {{ $terisiWajib }} / {{ $totalWajib }}</small>
-          <div class="progress flex-grow-1 mx-3" style="height: 8px; max-width:400px">
-            <div class="progress-bar bg-{{ $terisiWajib >= $totalWajib ? 'success' : 'warning' }}"
-                 style="width: {{ $totalWajib ? ($terisiWajib / $totalWajib * 100) : 0 }}%"></div>
+        <div class="row g-2 small">
+          <div class="col-md-4">
+            <strong>Gate "Selesai Meeting":</strong>
           </div>
-          @if ($terisiWajib >= $totalWajib)
-            <small class="text-success"><i class="bx bx-check-circle"></i> lengkap</small>
-          @else
-            <small class="text-muted">{{ $totalWajib - $terisiWajib }} lagi</small>
-          @endif
+          <div class="col-md-8">
+            <ul class="list-unstyled mb-0 small">
+              <li>
+                <i class="bx bx-{{ $allWajibFinal ? 'check text-success' : 'x text-danger' }}"></i>
+                Pelaku jawab semua wajib_jawab ({{ $terisiWajib }}/{{ $totalWajib }})
+              </li>
+              <li>
+                <i class="bx bx-{{ $hasilFilled ? 'check text-success' : 'x text-danger' }}"></i>
+                Hasil Meeting (PIC) terisi
+              </li>
+              <li>
+                <i class="bx bx-{{ $pernyataanSigned ? 'check text-success' : 'x text-danger' }}"></i>
+                Pernyataan pelaku ditandatangani
+              </li>
+            </ul>
+          </div>
         </div>
       @endif
     </div>
@@ -156,186 +184,209 @@
   @if ($isPreparing)
     <div class="alert alert-info">
       <i class="bx bx-info-circle"></i>
-      <strong>Mode PREPARING.</strong>
-      Dewan & PIC boleh tambah pertanyaan. Pelaku boleh kasih komentar tapi belum jawab final.
-      Setelah dirasa cukup, PIC atau Pelaku klik tombol di atas untuk mulai fase pelaku menjawab.
+      <strong>Fase 1: PERSIAPAN.</strong>
+      PIC + Dewan siapkan agenda pembahasan & list pertanyaan. Pelaku boleh kasih komentar awal.
+      Saat siap → PIC klik <em>Mulai Meeting PICA</em>.
     </div>
-  @elseif ($isAnswering)
+  @elseif ($isMeeting)
     <div class="alert alert-warning">
       <i class="bx bx-time"></i>
-      <strong>Mode WAITING_PELAKU.</strong>
-      Pelaku silakan jawab pertanyaan/pernyataan (terutama yang ditandai <span class="badge bg-danger">WAJIB</span>),
-      lalu klik tombol "Tandai final" untuk menjadikan jawaban sebagai final.
+      <strong>Fase 2: MEETING BERLANGSUNG.</strong>
+      PIC catat hasil meeting · Pelaku jawab pertanyaan + buat pernyataan formal · Setelah lengkap PIC klik <em>Selesai Meeting</em>.
     </div>
   @elseif ($isLocked)
     <div class="alert alert-secondary">
       <i class="bx bx-lock-alt"></i>
-      <strong>Mode {{ $status }} — Read-only.</strong>
-      Pertanyaan tidak bisa ditambah/diubah. Komentar masih boleh.
+      <strong>Status {{ $status }} — Read-only.</strong> Lihat report di tombol "Buka Report".
     </div>
   @endif
 
-  {{-- ============ PERTANYAAN LIST ============ --}}
-  @forelse ($pertanyaanList as $q)
-    @php
-      $jws = $jawabanByQ[$q->id] ?? collect();
-      $finalJ = $jws->firstWhere('is_final', 1);
-      $tipeColor = $q->tipe === 'pernyataan' ? 'warning' : 'primary';
-      $source = is_null($q->pertanyaan_master_id) ? 'BEBAS' : 'MASTER';
-    @endphp
-
-    <div class="card mb-3" id="q-{{ $q->id }}">
-      <div class="card-header d-flex justify-content-between align-items-start py-2 flex-wrap gap-2">
-        <div>
-          <span class="badge bg-label-{{ $tipeColor }}">{{ strtoupper($q->tipe) }}</span>
-          @if ($q->wajib_jawab)
-            <span class="badge bg-danger">WAJIB</span>
-          @endif
-          <span class="badge bg-label-secondary">{{ $source }}</span>
-          @if ($finalJ)
-            <span class="badge bg-success"><i class="bx bx-check"></i> FINAL</span>
-          @endif
-          <small class="text-muted ms-2">#{{ $q->urutan }}</small>
-        </div>
-        @if ($isPic && !$isLocked)
-          <form method="POST" action="{{ route('pica-v2.pertanyaan.delete', ['kode' => $pica->Tr_Pica_Emp_h_Code, 'id' => $q->id]) }}"
-                onsubmit="return confirm('Hapus pertanyaan ini?');">
-            @csrf @method('DELETE')
-            <button class="btn btn-sm btn-outline-danger" title="Hapus (PIC only)">
-              <i class="bx bx-trash"></i>
-            </button>
-          </form>
-        @endif
-      </div>
-      <div class="card-body">
-        <p class="mb-2"><strong>{{ $q->pertanyaan }}</strong></p>
-        @if ($q->creator_username)
-          <small class="text-muted d-block mb-3">
-            Ditambah oleh <em>{{ $q->creator_name ?? $q->creator_username }}</em>
-            · {{ \Carbon\Carbon::parse($q->created_at)->diffForHumans() }}
-          </small>
-        @endif
-
-        {{-- Thread jawaban --}}
-        @if ($jws->isNotEmpty())
-          <div class="ms-3 ps-3 border-start">
-            @foreach ($jws as $j)
-              @php
-                $isFinalRow = $j->is_final;
-                $author = $j->name ?? $j->username ?? 'user#' . $j->user_id;
-              @endphp
-              <div class="mb-3 {{ $isFinalRow ? 'p-2 rounded bg-label-success' : '' }}">
-                <div class="d-flex justify-content-between align-items-center">
-                  <small>
-                    @if ($isFinalRow)<i class="bx bx-star text-warning"></i> @endif
-                    <strong>{{ $author }}</strong>
-                    <span class="text-muted">· {{ \Carbon\Carbon::parse($j->created_at)->diffForHumans() }}</span>
-                    @if ($isFinalRow)
-                      <span class="badge bg-success ms-1">FINAL</span>
-                    @endif
-                  </small>
-                  {{-- Set final button (pelaku only, WAITING_PELAKU, own answer) --}}
-                  @if ($isAnswering && $isPelaku && !$isFinalRow && $j->user_id == auth()->id())
-                    <form method="POST" action="{{ route('pica-v2.jawaban.final', ['kode' => $pica->Tr_Pica_Emp_h_Code, 'id' => $j->id]) }}"
-                          onsubmit="return confirm('Tandai jawaban ini sebagai final? Jawaban final lain di pertanyaan ini akan di-unfinal.');">
-                      @csrf @method('PATCH')
-                      <button class="btn btn-xs btn-outline-success" title="Tandai sebagai jawaban final">
-                        <i class="bx bx-check"></i> Tandai final
-                      </button>
-                    </form>
-                  @endif
-                </div>
-                @if ($j->ack_status)
-                  <div>
-                    <span class="badge bg-label-{{ $j->ack_status === 'setuju' ? 'success' : 'danger' }}">
-                      {{ $j->ack_status === 'setuju' ? 'Setuju' : 'Tidak Setuju' }}
-                    </span>
-                  </div>
-                @endif
-                @if ($j->jawaban)
-                  <div class="mt-1" style="white-space: pre-line">{{ $j->jawaban }}</div>
-                @endif
-              </div>
-            @endforeach
+  {{-- ============ PREPARING — Kronologi BA + Agenda ============ --}}
+  @if ($isPreparing || $isMeeting)
+    <div class="row g-3 mb-3">
+      {{-- Kronologi dari BA induk (read-only) --}}
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header py-2">
+            <strong><i class="bx bx-history"></i> Kronologi Kejadian</strong>
+            <small class="text-muted d-block">
+              @if ($baInduk)
+                Dari BA induk · read-only
+              @else
+                BA induk tidak terlink — konteks dari Problem Note di header
+              @endif
+            </small>
           </div>
-        @endif
+          <div class="card-body" style="max-height: 280px; overflow-y: auto">
+            @if ($baKronologi->isNotEmpty())
+              <ol class="mb-0 small">
+                @foreach ($baKronologi as $kr)
+                  <li>{{ $kr->detail }}</li>
+                @endforeach
+              </ol>
+            @else
+              <p class="text-muted small mb-0">Tidak ada kronologi detail dari BA induk.</p>
+            @endif
+          </div>
+        </div>
+      </div>
 
-        {{-- Form add jawaban/komentar --}}
-        @if (!$isLocked)
-          <hr class="my-2">
-          <form method="POST" action="{{ route('pica-v2.jawaban.add', ['kode' => $pica->Tr_Pica_Emp_h_Code, 'id' => $q->id]) }}">
-            @csrf
-            @if ($q->tipe === 'pernyataan')
-              <div class="mb-2">
-                <label class="form-label small mb-1">Sikap:</label>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="ack_status" id="ack-s-{{ $q->id }}" value="setuju">
-                  <label class="form-check-label small" for="ack-s-{{ $q->id }}">Setuju</label>
-                </div>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="radio" name="ack_status" id="ack-t-{{ $q->id }}" value="tidak_setuju">
-                  <label class="form-check-label small" for="ack-t-{{ $q->id }}">Tidak Setuju</label>
-                </div>
+      {{-- Agenda Pembahasan (PIC + Dewan edit) --}}
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header py-2">
+            <strong><i class="bx bx-list-ul"></i> Agenda Pembahasan</strong>
+            <small class="text-muted d-block">PIC + Dewan: bullet list topik yang akan dibahas saat meeting.</small>
+          </div>
+          <div class="card-body">
+            <form method="POST" action="{{ route('pica-v2.agenda.save', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
+              @csrf
+              <textarea name="agenda_pembahasan" class="form-control form-control-sm" rows="8"
+                placeholder="- Bahas penyebab langsung&#10;- Klarifikasi kronologi dgn pelaku&#10;- Diskusi corrective action&#10;..."
+                {{ !($isPic || $isDewan) ? 'readonly' : '' }}>{{ $pica->agenda_pembahasan }}</textarea>
+              @if ($isPic || $isDewan)
+                <button class="btn btn-sm btn-primary mt-2" type="submit">
+                  <i class="bx bx-save"></i> Simpan Agenda
+                </button>
+              @endif
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  @endif
+
+  {{-- ============ MEETING TABS (saat MEETING) ============ --}}
+  @if ($isMeeting)
+    <ul class="nav nav-pills mb-3" role="tablist">
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-qa">
+        <i class="bx bx-question-mark"></i> Q&A Forum
+      </a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-catatan">
+        <i class="bx bx-edit"></i> Catatan Meeting
+      </a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-pernyataan">
+        <i class="bx bx-check-shield"></i> Pernyataan Pelaku
+        @if ($pernyataanSigned)<span class="badge bg-success ms-1">signed</span>@endif
+      </a></li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="tab-qa">
+        @include('pica_v2._discussion_questions')
+      </div>
+
+      <div class="tab-pane fade" id="tab-catatan">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header py-2">
+                <strong><i class="bx bx-user-pin"></i> Hasil Meeting (PIC)</strong>
+                <small class="text-muted d-block">{{ $isPic ? 'Catat hasil pembahasan, kesimpulan, keputusan kelompok.' : 'PIC only — read-only untuk yang lain.' }}</small>
+              </div>
+              <div class="card-body">
+                <form method="POST" action="{{ route('pica-v2.hasil.save', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
+                  @csrf
+                  <textarea name="hasil_meeting_pic" class="form-control" rows="14"
+                    placeholder="- Diskusi poin 1...&#10;- Pelaku menjelaskan...&#10;- Kesimpulan...&#10;- Tindakan disepakati..."
+                    {{ !$isPic ? 'readonly' : '' }}>{{ $pica->hasil_meeting_pic }}</textarea>
+                  @if ($isPic)
+                    <button class="btn btn-sm btn-primary mt-2" type="submit">
+                      <i class="bx bx-save"></i> Simpan Hasil
+                    </button>
+                  @endif
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header py-2">
+                <strong><i class="bx bx-user-voice"></i> Catatan Pelaku</strong>
+                <small class="text-muted d-block">{{ $isPelaku ? 'Catatan independen Anda — perspektif sendiri.' : 'Pelaku only — read-only untuk yang lain.' }}</small>
+              </div>
+              <div class="card-body">
+                <form method="POST" action="{{ route('pica-v2.catatan.save', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
+                  @csrf
+                  <textarea name="catatan_pelaku" class="form-control" rows="14"
+                    placeholder="Catatan pelaku..."
+                    {{ !$isPelaku ? 'readonly' : '' }}>{{ $pica->catatan_pelaku }}</textarea>
+                  @if ($isPelaku)
+                    <button class="btn btn-sm btn-primary mt-2" type="submit">
+                      <i class="bx bx-save"></i> Simpan Catatan
+                    </button>
+                  @endif
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="tab-pernyataan">
+        <div class="card">
+          <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <div>
+              <strong><i class="bx bx-check-shield"></i> Pernyataan Formal Pelaku</strong>
+              <small class="text-muted d-block">
+                @if ($pernyataanSigned)
+                  Ditandatangani oleh <b>{{ $pica->pernyataan_signed_by }}</b>
+                  pada {{ \Carbon\Carbon::parse($pica->pernyataan_signed_at)->format('d M Y H:i') }}
+                @else
+                  Pelaku: edit draft, lalu klik "Tanda Tangan" untuk kunci.
+                @endif
+              </small>
+            </div>
+            @if ($pernyataanSigned && $isPic)
+              <form method="POST" action="{{ route('pica-v2.pernyataan.unsign', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
+                    onsubmit="return confirm('Batalkan signature pernyataan? Pelaku bisa edit ulang.');">
+                @csrf
+                <button class="btn btn-sm btn-outline-warning" title="Unlock (PIC only)">
+                  <i class="bx bx-lock-open"></i> Unlock
+                </button>
+              </form>
+            @endif
+          </div>
+          <div class="card-body">
+            {{-- Form 1: Save draft (textarea pernyataan) --}}
+            <form method="POST" action="{{ route('pica-v2.pernyataan.save', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
+              @csrf
+              <textarea name="pernyataan_pelaku" class="form-control"
+                rows="16" style="font-family: ui-monospace,Menlo,monospace; font-size: .9em"
+                {{ !$isPelaku || $pernyataanSigned ? 'readonly' : '' }}>{{ $pernyataanText }}</textarea>
+
+              @if ($isPelaku && !$pernyataanSigned)
+                <button class="btn btn-sm btn-outline-primary mt-2" type="submit">
+                  <i class="bx bx-save"></i> Simpan Draft
+                </button>
+              @endif
+            </form>
+
+            {{-- Form 2: Sign (separate form, separate action) --}}
+            @if ($isPelaku && !$pernyataanSigned)
+              <form method="POST" action="{{ route('pica-v2.pernyataan.sign', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
+                    onsubmit="return confirm('Tandatangani pernyataan? Setelah signed, tidak bisa di-edit lagi (kecuali PIC unlock).');"
+                    class="d-inline">
+                @csrf
+                <button class="btn btn-sm btn-success mt-2" type="submit">
+                  <i class="bx bx-check-circle"></i> Tanda Tangan Pernyataan
+                </button>
+              </form>
+            @elseif ($pernyataanSigned)
+              <div class="alert alert-success small mb-0 mt-2">
+                <i class="bx bx-lock"></i> Pernyataan terkunci setelah ditandatangani.
               </div>
             @endif
-            <div class="d-flex gap-2">
-              <textarea name="jawaban" class="form-control form-control-sm" rows="2"
-                placeholder="{{ $q->tipe === 'pernyataan' ? 'Reasoning (opsional bila pilih sikap)...' : 'Tulis jawaban/komentar...' }}"></textarea>
-              <button class="btn btn-sm btn-primary align-self-end" type="submit">
-                <i class="bx bx-send"></i>
-              </button>
-            </div>
-          </form>
-        @endif
-      </div>
-    </div>
-  @empty
-    <div class="alert alert-warning">
-      Belum ada pertanyaan. {{ $canAddQ ? 'Silakan tambah pertanyaan di bawah.' : '' }}
-    </div>
-  @endforelse
-
-  {{-- ============ ADD PERTANYAAN BARU ============ --}}
-  @if ($canAddQ && !$isLocked)
-    <div class="card mb-3 border-primary">
-      <div class="card-header py-2">
-        <strong><i class="bx bx-plus-circle"></i> Tambah pertanyaan baru</strong>
-        <small class="text-muted">
-          @if ($isPic) (PIC bebas toggle wajib)
-          @else (Dewan — default wajib off, PIC bisa override)
-          @endif
-        </small>
-      </div>
-      <div class="card-body">
-        <form method="POST" action="{{ route('pica-v2.pertanyaan.add', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">
-          @csrf
-          <div class="row g-2">
-            <div class="col-md-2">
-              <select name="tipe" class="form-select form-select-sm">
-                <option value="pertanyaan">Pertanyaan</option>
-                <option value="pernyataan">Pernyataan</option>
-              </select>
-            </div>
-            <div class="col-md-7">
-              <input type="text" name="pertanyaan" class="form-control form-control-sm"
-                maxlength="1000" placeholder="Tulis pertanyaan atau pernyataan..." required>
-            </div>
-            <div class="col-md-2 d-flex align-items-center">
-              <label class="form-check-label small">
-                <input type="checkbox" name="wajib_jawab" value="1" class="form-check-input">
-                Wajib jawab
-              </label>
-            </div>
-            <div class="col-md-1">
-              <button class="btn btn-sm btn-primary w-100" type="submit">
-                <i class="bx bx-plus"></i>
-              </button>
-            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
+  @else
+    {{-- Non-MEETING: tampilkan Q&A langsung (tanpa tabs) --}}
+    @include('pica_v2._discussion_questions')
   @endif
+
 </div>
 
 <style>

@@ -205,7 +205,7 @@
     $statusColor = [
       'DRAFT'           => 'secondary',
       'PREPARING'       => 'info',
-      'WAITING_PELAKU'  => 'warning',
+      'MEETING'         => 'warning',
       'ACTION_PLANNING' => 'primary',
       'CLOSED'          => 'success',
     ];

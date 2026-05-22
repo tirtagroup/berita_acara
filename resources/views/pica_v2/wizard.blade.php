@@ -376,7 +376,7 @@
         <div id="pica-step-review" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Review &amp; Submit</h5>
-            <small>Cek semua data sebelum submit. Klik step di header untuk kembali edit. Setelah submit, PICA masuk status <code>WAITING_PELAKU</code>.</small>
+            <small>Cek semua data sebelum submit. Klik step di header untuk kembali edit. Setelah submit, PICA masuk status <code>PREPARING</code> (fase persiapan agenda + pertanyaan).</small>
           </div>
           <div class="card">
             <div class="card-body">

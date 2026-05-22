@@ -854,6 +854,14 @@ Route::middleware('auth')->group(function () {
         Route::patch('/{kode}/jawaban/{id}/final',                 [PicaV2Controller::class, 'setFinal'])->name('jawaban.final');
         Route::post('/{kode}/phase',                               [PicaV2Controller::class, 'togglePhase'])->name('phase.toggle');
 
+        // Meeting documentation (PICA v3 — split PREPARING/MEETING)
+        Route::post('/{kode}/agenda',                              [PicaV2Controller::class, 'saveAgenda'])->name('agenda.save');
+        Route::post('/{kode}/hasil-meeting',                       [PicaV2Controller::class, 'saveHasilMeeting'])->name('hasil.save');
+        Route::post('/{kode}/catatan-pelaku',                      [PicaV2Controller::class, 'saveCatatanPelaku'])->name('catatan.save');
+        Route::post('/{kode}/pernyataan',                          [PicaV2Controller::class, 'savePernyataanPelaku'])->name('pernyataan.save');
+        Route::post('/{kode}/pernyataan/sign',                     [PicaV2Controller::class, 'signPernyataan'])->name('pernyataan.sign');
+        Route::post('/{kode}/pernyataan/unsign',                   [PicaV2Controller::class, 'unsignPernyataan'])->name('pernyataan.unsign');
+
         // Report (Fase 4 — structured compile sections A-G)
         Route::get('/report',                                      [PicaV2Controller::class, 'report'])->name('report');
         Route::post('/{kode}/report',                              [PicaV2Controller::class, 'saveReport'])->name('report.save');

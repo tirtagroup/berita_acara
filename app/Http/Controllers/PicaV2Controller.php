@@ -256,7 +256,7 @@ class PicaV2Controller extends Controller
 
     /**
      * Load discussion page untuk 1 PICA.
-     * Dual-mode: PREPARING (siapkan pertanyaan) atau WAITING_PELAKU (pelaku jawab final).
+     * Dual-mode: PREPARING (siapkan pertanyaan) atau MEETING (pelaku jawab final + sign pernyataan).
      */
     public function discussion(Request $request)
     {
@@ -325,30 +325,44 @@ class PicaV2Controller extends Controller
             $jawabanByQ = $jawabanRows->groupBy('pertanyaan_id');
         }
 
-        // Wajib jawab progress (untuk gate WAITING_PELAKU → ACTION_PLANNING)
+        // Wajib jawab progress (untuk gate MEETING → ACTION_PLANNING)
         $totalWajib   = $pertanyaanList->where('wajib_jawab', 1)->count();
         $terisiWajib  = $pertanyaanList
             ->where('wajib_jawab', 1)
             ->filter(fn($q) => isset($jawabanByQ[$q->id]) && $jawabanByQ[$q->id]->where('is_final', 1)->count() > 0)
             ->count();
 
-        // BA induk info (kalau ada)
+        // BA induk + kronologi (kalau ada)
         $baInduk = null;
+        $baKronologi = collect();
         if (!empty($pica->NoBA)) {
             $baInduk = DB::table('Tr_Ba_Main_New')
                 ->where('Tr_BA_Main_Code', $pica->NoBA)
                 ->first(['Tr_BA_Main_Code', 'BA_Desc']);
+            if ($baInduk) {
+                $baKronologi = DB::table('tr_ba_kronologi')
+                    ->where('tr_ba_main_code', $baInduk->Tr_BA_Main_Code)
+                    ->orderBy('urutan')->orderBy('id')
+                    ->get(['urutan', 'detail']);
+            }
         }
+
+        // Default template pernyataan (bila kosong)
+        $pernyataanDefault = self::defaultPernyataanTemplate(
+            $pica,
+            $pelakuEmp->emp_name ?? null
+        );
 
         return view('pica_v2.discussion', compact(
             'pica', 'participants', 'pelakuEmp', 'pelakuUser', 'kategoriPica',
             'pertanyaanList', 'jawabanByQ', 'totalWajib', 'terisiWajib',
-            'baInduk', 'isPic', 'isDewan', 'isPelaku'
+            'baInduk', 'baKronologi', 'pernyataanDefault',
+            'isPic', 'isDewan', 'isPelaku'
         ));
     }
 
     /**
-     * Add pertanyaan baru ke PICA (dari Dewan atau PIC, fase PREPARING/WAITING_PELAKU).
+     * Add pertanyaan baru ke PICA (dari Dewan atau PIC, fase PREPARING/MEETING).
      */
     public function addPertanyaan(Request $request, string $kode)
     {
@@ -371,7 +385,7 @@ class PicaV2Controller extends Controller
         abort_unless($pica, 404);
 
         // Status check — tidak boleh tambah pertanyaan kalau sudah ACTION_PLANNING/CLOSED
-        if (!in_array($pica->Status_PICA, ['PREPARING', 'WAITING_PELAKU'])) {
+        if (!in_array($pica->Status_PICA, ['PREPARING', 'MEETING'])) {
             return back()->withErrors(['add_q' => 'Tidak bisa tambah pertanyaan saat status ' . $pica->Status_PICA]);
         }
 
@@ -437,7 +451,7 @@ class PicaV2Controller extends Controller
     }
 
     /**
-     * Tandai jawaban sebagai final (hanya pelaku, status WAITING_PELAKU).
+     * Tandai jawaban sebagai final (hanya pelaku, status MEETING).
      * Idempotent: bila sudah ada is_final lain di pertanyaan yg sama, un-final yg lama.
      */
     public function setFinal(Request $request, string $kode, int $jawabanId)
@@ -452,8 +466,8 @@ class PicaV2Controller extends Controller
         abort_unless($isPelaku, 403, 'Hanya pelaku yang boleh set is_final.');
 
         // Cek status
-        abort_unless($pica->Status_PICA === 'WAITING_PELAKU', 403,
-            'PICA harus pada status WAITING_PELAKU untuk set is_final.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403,
+            'PICA harus pada status MEETING untuk set is_final.');
 
         $jawaban = DB::table('tr_pica_jawaban as j')
             ->join('tr_pica_pertanyaan_d as q', 'q.id', '=', 'j.pertanyaan_id')
@@ -479,14 +493,15 @@ class PicaV2Controller extends Controller
     }
 
     /**
-     * Transisi status PICA. Aturan:
-     *   - PREPARING → WAITING_PELAKU : PIC atau Pelaku
-     *   - WAITING_PELAKU → ACTION_PLANNING : PIC, dengan semua wajib_jawab harus is_final
-     *   - ACTION_PLANNING → CLOSED : PIC (Fase 4)
+     * Transisi status PICA. Aturan v3:
+     *   - PREPARING → MEETING : PIC only (mulai meeting). Set meeting_started_at.
+     *   - MEETING → ACTION_PLANNING : PIC, gate: semua wajib_jawab is_final + pernyataan signed + hasil_meeting_pic tidak kosong.
+     *   - MEETING → PREPARING : PIC, batalkan meeting (set meeting_started_at NULL).
+     *   - ACTION_PLANNING → CLOSED : Fase 4 (via closePica()).
      */
     public function togglePhase(Request $request, string $kode)
     {
-        $target = $request->input('target'); // 'WAITING_PELAKU' | 'ACTION_PLANNING' | 'CLOSED'
+        $target = $request->input('target'); // 'MEETING' | 'ACTION_PLANNING' | 'BACK_TO_PREPARING'
 
         $user = auth()->user();
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
@@ -499,43 +514,59 @@ class PicaV2Controller extends Controller
         $now = Carbon::now();
 
         switch ($target) {
-            case 'WAITING_PELAKU':
+            case 'MEETING':
                 abort_unless($pica->Status_PICA === 'PREPARING', 422, 'Hanya dari PREPARING.');
-                abort_unless($isPic || $isPelaku, 403, 'Hanya PIC atau Pelaku yang boleh trigger.');
+                abort_unless($isPic, 403, 'Hanya PIC yang boleh mulai meeting.');
                 DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
-                    ->update(['Status_PICA' => 'WAITING_PELAKU', 'updated_at' => $now]);
-                return back()->with('success', 'Status berubah ke WAITING_PELAKU. Pelaku sekarang bisa kasih jawaban final.');
+                    ->update([
+                        'Status_PICA' => 'MEETING',
+                        'meeting_started_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                return back()->with('success', 'Meeting PICA dimulai. Silakan catat hasil pembahasan, pelaku jawab pertanyaan + tanda tangan pernyataan.');
 
             case 'ACTION_PLANNING':
-                abort_unless($pica->Status_PICA === 'WAITING_PELAKU', 422, 'Hanya dari WAITING_PELAKU.');
+                abort_unless($pica->Status_PICA === 'MEETING', 422, 'Hanya dari MEETING.');
                 abort_unless($isPic, 403, 'Hanya PIC yang boleh lanjut ke ACTION_PLANNING.');
 
-                // Validasi: semua wajib_jawab harus punya is_final
+                // Gate validation
                 $unanswered = DB::table('tr_pica_pertanyaan_d as q')
                     ->leftJoin('tr_pica_jawaban as j', function ($join) {
-                        $join->on('j.pertanyaan_id', '=', 'q.id')
-                             ->where('j.is_final', 1);
+                        $join->on('j.pertanyaan_id', '=', 'q.id')->where('j.is_final', 1);
                     })
                     ->where('q.tr_pica_main_code', $kode)
                     ->where('q.wajib_jawab', 1)
                     ->whereNull('j.id')
                     ->count();
-                if ($unanswered > 0) {
-                    return back()->withErrors(['phase' => "Masih ada {$unanswered} pertanyaan wajib_jawab yang belum dijawab final oleh pelaku."]);
+
+                $errors = [];
+                if ($unanswered > 0) $errors[] = "{$unanswered} pertanyaan wajib_jawab belum dijawab final pelaku.";
+                if (empty(trim($pica->hasil_meeting_pic ?? ''))) $errors[] = 'Hasil Meeting (PIC) masih kosong.';
+                if (empty($pica->pernyataan_signed_at)) $errors[] = 'Pernyataan pelaku belum di-tanda-tangan.';
+
+                if (!empty($errors)) {
+                    return back()->withErrors(['phase' => 'Belum bisa selesai meeting: ' . implode(' ', $errors)]);
                 }
 
                 DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
-                    ->update(['Status_PICA' => 'ACTION_PLANNING', 'updated_at' => $now]);
-                // Redirect ke report editor (Fase 4)
+                    ->update([
+                        'Status_PICA' => 'ACTION_PLANNING',
+                        'meeting_ended_at' => $now,
+                        'updated_at' => $now,
+                    ]);
                 return redirect()->route('pica-v2.report', ['kode' => $kode])
-                    ->with('success', 'Status berubah ke ACTION_PLANNING. Silakan susun corrective & preventive action.');
+                    ->with('success', 'Meeting selesai. Status → ACTION_PLANNING. Silakan susun corrective & preventive action.');
 
             case 'BACK_TO_PREPARING':
-                abort_unless($pica->Status_PICA === 'WAITING_PELAKU', 422, 'Hanya dari WAITING_PELAKU.');
-                abort_unless($isPic, 403, 'Hanya PIC yang boleh balik ke PREPARING.');
+                abort_unless($pica->Status_PICA === 'MEETING', 422, 'Hanya dari MEETING.');
+                abort_unless($isPic, 403, 'Hanya PIC yang boleh batalkan meeting.');
                 DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
-                    ->update(['Status_PICA' => 'PREPARING', 'updated_at' => $now]);
-                return back()->with('success', 'Status balik ke PREPARING. Anda bisa edit pertanyaan dulu.');
+                    ->update([
+                        'Status_PICA' => 'PREPARING',
+                        'meeting_started_at' => null,
+                        'updated_at' => $now,
+                    ]);
+                return back()->with('success', 'Meeting dibatalkan. Status balik ke PREPARING.');
 
             default:
                 abort(422, 'Target status tidak dikenal.');
@@ -553,7 +584,7 @@ class PicaV2Controller extends Controller
 
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
         abort_unless($pica, 404);
-        abort_unless(in_array($pica->Status_PICA, ['PREPARING', 'WAITING_PELAKU']), 422,
+        abort_unless(in_array($pica->Status_PICA, ['PREPARING', 'MEETING']), 422,
             'Tidak bisa hapus saat status ' . $pica->Status_PICA);
 
         $deleted = DB::table('tr_pica_pertanyaan_d')
@@ -564,6 +595,162 @@ class PicaV2Controller extends Controller
         return $deleted
             ? back()->with('success', 'Pertanyaan dihapus.')
             : back()->withErrors(['del_q' => 'Pertanyaan tidak ditemukan.']);
+    }
+
+    // =========================================================
+    // FASE 3.5 — MEETING DOCUMENTATION (agenda, hasil PIC, catatan + pernyataan pelaku)
+    // =========================================================
+
+    /**
+     * Save agenda pembahasan (PIC + Dewan, fase PREPARING).
+     */
+    public function saveAgenda(Request $request, string $kode)
+    {
+        $request->validate(['agenda_pembahasan' => ['nullable', 'string', 'max:10000']]);
+        $pica = $this->getPicaOrAbort($kode);
+        $roles = $this->myRoles($kode, auth()->id());
+        abort_unless(in_array('pic', $roles, true) || in_array('dewan', $roles, true), 403, 'Hanya PIC atau Dewan.');
+        abort_unless(in_array($pica->Status_PICA, ['PREPARING', 'MEETING']), 403, 'Agenda hanya bisa di-edit di PREPARING atau MEETING.');
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update(['agenda_pembahasan' => $request->agenda_pembahasan, 'updated_at' => Carbon::now()]);
+        return back()->with('success', 'Agenda pembahasan tersimpan.');
+    }
+
+    /**
+     * Save hasil meeting (PIC only, fase MEETING).
+     */
+    public function saveHasilMeeting(Request $request, string $kode)
+    {
+        $request->validate(['hasil_meeting_pic' => ['nullable', 'string', 'max:20000']]);
+        $pica = $this->getPicaOrAbort($kode);
+        $roles = $this->myRoles($kode, auth()->id());
+        abort_unless(in_array('pic', $roles, true), 403, 'Hanya PIC.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403, 'Hanya saat status MEETING.');
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update(['hasil_meeting_pic' => $request->hasil_meeting_pic, 'updated_at' => Carbon::now()]);
+        return back()->with('success', 'Hasil meeting (PIC) tersimpan.');
+    }
+
+    /**
+     * Save catatan pelaku (Pelaku only, fase MEETING).
+     */
+    public function saveCatatanPelaku(Request $request, string $kode)
+    {
+        $request->validate(['catatan_pelaku' => ['nullable', 'string', 'max:20000']]);
+        $pica = $this->getPicaOrAbort($kode);
+        $isPelaku = strtolower(auth()->user()->username ?? '') === strtolower($pica->Emp_Code ?? '');
+        abort_unless($isPelaku, 403, 'Hanya pelaku.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403, 'Hanya saat status MEETING.');
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update(['catatan_pelaku' => $request->catatan_pelaku, 'updated_at' => Carbon::now()]);
+        return back()->with('success', 'Catatan pelaku tersimpan.');
+    }
+
+    /**
+     * Save pernyataan pelaku (Pelaku only, fase MEETING, sebelum signed).
+     */
+    public function savePernyataanPelaku(Request $request, string $kode)
+    {
+        $request->validate(['pernyataan_pelaku' => ['nullable', 'string', 'max:20000']]);
+        $pica = $this->getPicaOrAbort($kode);
+        $isPelaku = strtolower(auth()->user()->username ?? '') === strtolower($pica->Emp_Code ?? '');
+        abort_unless($isPelaku, 403, 'Hanya pelaku.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403, 'Hanya saat status MEETING.');
+        abort_unless(empty($pica->pernyataan_signed_at), 403, 'Pernyataan sudah ditandatangani, tidak bisa di-edit.');
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update(['pernyataan_pelaku' => $request->pernyataan_pelaku, 'updated_at' => Carbon::now()]);
+        return back()->with('success', 'Draft pernyataan tersimpan. Klik "Tanda Tangan" untuk sign.');
+    }
+
+    /**
+     * Sign pernyataan pelaku (Pelaku only, fase MEETING).
+     * Set pernyataan_signed_at + signed_by, lock dari edit selanjutnya.
+     */
+    public function signPernyataan(Request $request, string $kode)
+    {
+        $pica = $this->getPicaOrAbort($kode);
+        $user = auth()->user();
+        $isPelaku = strtolower($user->username ?? '') === strtolower($pica->Emp_Code ?? '');
+        abort_unless($isPelaku, 403, 'Hanya pelaku yang boleh tanda tangan.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403, 'Hanya saat MEETING.');
+        abort_unless(!empty(trim($pica->pernyataan_pelaku ?? '')), 422, 'Pernyataan masih kosong, isi dulu.');
+        abort_unless(empty($pica->pernyataan_signed_at), 422, 'Pernyataan sudah ditandatangani.');
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update([
+                'pernyataan_signed_at' => Carbon::now(),
+                'pernyataan_signed_by' => $user->username,
+                'updated_at' => Carbon::now(),
+            ]);
+        return back()->with('success', 'Pernyataan berhasil ditandatangani pada ' . Carbon::now()->format('d M Y H:i') . '.');
+    }
+
+    /**
+     * Batalkan signature pernyataan (PIC only — emergency revert).
+     */
+    public function unsignPernyataan(Request $request, string $kode)
+    {
+        $pica = $this->getPicaOrAbort($kode);
+        $roles = $this->myRoles($kode, auth()->id());
+        abort_unless(in_array('pic', $roles, true), 403, 'Hanya PIC yang boleh unlock signature.');
+        abort_unless($pica->Status_PICA === 'MEETING', 403);
+
+        DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
+            ->update([
+                'pernyataan_signed_at' => null,
+                'pernyataan_signed_by' => null,
+                'updated_at' => Carbon::now(),
+            ]);
+        return back()->with('success', 'Signature pernyataan dibatalkan. Pelaku bisa edit ulang.');
+    }
+
+    /**
+     * Helper: ambil pica atau 404.
+     */
+    protected function getPicaOrAbort(string $kode)
+    {
+        $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
+        abort_unless($pica, 404);
+        return $pica;
+    }
+
+    /**
+     * Default template pernyataan pelaku (bila kosong, pre-fill di view).
+     */
+    public static function defaultPernyataanTemplate($pica, $pelakuName = null): string
+    {
+        $tgl = Carbon::parse($pica->Date_PICA ?? now())->format('d F Y');
+        $name = $pelakuName ?: ($pica->Emp_Code ?? '____________');
+        $problem = $pica->Problem_Note ?? '(deskripsi kejadian)';
+
+        return <<<TXT
+Saya yang bertanda tangan di bawah ini:
+
+  Nama  : {$name}
+  Kode  : {$pica->Emp_Code}
+
+Dengan ini menyatakan:
+
+1. Saya mengakui bahwa kejadian berikut benar terjadi:
+   {$problem}
+
+2. Saya memahami penyebab dan dampak dari kejadian tersebut sebagaimana
+   yang telah dibahas dalam meeting PICA pada tanggal {$tgl}.
+
+3. Saya berkomitmen untuk mengikuti corrective dan preventive action
+   yang telah disepakati, serta tidak mengulangi kejadian serupa.
+
+4. Saya bersedia menerima konsekuensi sesuai prosedur perusahaan apabila
+   terjadi pelanggaran berulang.
+
+Pernyataan ini saya buat dengan sebenar-benarnya tanpa paksaan.
+
+(Tanda tangan akan otomatis tercatat saat klik tombol "Tanda Tangan Pernyataan")
+TXT;
     }
 
     /**
@@ -1121,7 +1308,7 @@ class PicaV2Controller extends Controller
             ->groupBy('h.Status_PICA')
             ->get()->pluck('cnt', 'Status_PICA')->all();
 
-        $statuses = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
+        $statuses = ['DRAFT', 'PREPARING', 'MEETING', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
         $perStatus = [];
         foreach ($statuses as $s) {
             $perStatus[$s] = (int) ($statusRows[$s] ?? 0);

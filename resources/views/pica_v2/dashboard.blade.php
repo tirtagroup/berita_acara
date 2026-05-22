@@ -15,7 +15,7 @@
   $statusColor = [
     'DRAFT'           => 'secondary',
     'PREPARING'       => 'info',
-    'WAITING_PELAKU'  => 'warning',
+    'MEETING'  => 'warning',
     'ACTION_PLANNING' => 'primary',
     'CLOSED'          => 'success',
     'Belum Closing'   => 'dark',  // legacy
@@ -81,7 +81,7 @@
         </div>
       </div>
     </div>
-    @foreach (['PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'] as $s)
+    @foreach (['PREPARING', 'MEETING', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'] as $s)
       @php $c = $stats['per_status'][$s] ?? 0; @endphp
       <div class="col-md col-6">
         <a href="{{ route('pica-v2.list', ['status' => [$s], 'tgl_awal' => $tglAwal, 'tgl_akhir' => $tglAkhir, 'konteks_kode' => $konteksKode]) }}"
@@ -206,8 +206,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const stats = @json($stats);
-  const statusColors = ['#6c757d', '#03c3ec', '#ffab00', '#696cff', '#71dd37']; // DRAFT, PREPARING, WAITING_PELAKU, ACTION_PLANNING, CLOSED
-  const statusLabels = ['DRAFT', 'PREPARING', 'WAITING_PELAKU', 'ACTION_PLANNING', 'CLOSED'];
+  const statusColors = ['#6c757d', '#03c3ec', '#ffab00', '#696cff', '#71dd37']; // DRAFT, PREPARING, MEETING, ACTION_PLANNING, CLOSED
+  const statusLabels = ['DRAFT', 'PREPARING', 'MEETING', 'ACTION_PLANNING', 'CLOSED'];
 
   // Donut: status
   const elStatus = document.getElementById('chart-status');

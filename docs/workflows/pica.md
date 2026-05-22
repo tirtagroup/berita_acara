@@ -118,29 +118,39 @@ Tr_PICA_Comment (existing) — comments
 
 ---
 
-## Workflow & Status
+## Workflow & Status (v3 — 2026-05-22)
 
 ```
-[PIC create wizard] 
+[PIC create wizard]
     │
     ↓
 DRAFT (wizard belum submit)
     │ Submit wizard
     ↓
-PREPARING  ← baru: fase persiapan pertanyaan oleh Dewan
-    │ Dewan tambah pertanyaan (toggle wajib_jawab default off, PIC bisa override)
-    │ Pelaku boleh lihat & kasih komentar (belum is_final)
-    │ Trigger transisi: PIC klik "Lock & kirim ke pelaku" ATAU Pelaku klik "Saya siap menjawab"
+PREPARING  ← Fase 1: persiapan asynchronous
+    │ - Kronologi kejadian (read-only dari BA induk)
+    │ - Agenda pembahasan (PIC + Dewan edit)
+    │ - List pertanyaan + pernyataan (PIC + Dewan tambah)
+    │ - Pelaku boleh komentar (belum is_final)
+    │ Trigger: PIC klik "Mulai Meeting PICA"
     ↓
-WAITING_PELAKU
-    │ Pelaku jawab semua wajib_jawab (is_final=true)
-    │ Dewan/PIC kasih komentar/follow-up
-    ↓ (validasi: semua wajib_jawab terisi)
+MEETING  ← Fase 2: dokumentasi saat meeting berlangsung
+    │ 3 panel paralel:
+    │ 1. Q&A Forum — pelaku jawab is_final
+    │ 2. Hasil Meeting (PIC only) + Catatan Pelaku (Pelaku only)
+    │ 3. Pernyataan Pelaku formal (template default, signable)
+    │ Gate ke ACTION_PLANNING:
+    │   ✓ Semua wajib_jawab is_final
+    │   ✓ Hasil Meeting (PIC) tidak kosong
+    │   ✓ Pernyataan pelaku signed
+    ↓
 ACTION_PLANNING
-    │ PIC + dewan susun corrective + preventive action
+    │ PIC + dewan susun corrective + preventive action via /pica/v2/report
     ↓
 CLOSED
 ```
+
+**Catatan migrasi**: Status `WAITING_PELAKU` (lama) dimigrasi ke `MEETING` di migration `2026_05_22_100000`. Saat itu 0 row dengan status WAITING_PELAKU (data legacy semua "Belum Closing").
 
 **Permission per fase:**
 
