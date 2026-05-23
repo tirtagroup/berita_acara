@@ -2,6 +2,12 @@
 {
   "menu": [
     {
+      "url": "/help",
+      "name": "Help Center",
+      "icon": "menu-icon tf-icons bx bx-help-circle",
+      "slug": "help"
+    },
+    {
       "menuHeader": "Master"
     },
     {
@@ -85,6 +91,11 @@
             {
               "url": "/master/cek-mapping",
               "name": "Cek* Flag → Kategori",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/doc-workflow",
+              "name": "Doc Workflow (Help)",
               "slug": "forms-basic-inputs"
             }
           ]

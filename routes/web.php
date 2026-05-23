@@ -32,6 +32,8 @@ use App\Http\Controllers\Tr_PICA_Controller;
 use App\Http\Controllers\MasterKategoriController;
 use App\Http\Controllers\MasterPicaController;
 use App\Http\Controllers\MasterCekMappingController;
+use App\Http\Controllers\MasterDocWorkflowController;
+use App\Http\Controllers\HelpController;
 use App\Http\Controllers\BeritaAcaraV2Controller;
 use App\Http\Controllers\PicaV2Controller;
 
@@ -791,6 +793,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/',                  [MasterCekMappingController::class, 'index'])->name('index');
         Route::put('/{id}',              [MasterCekMappingController::class, 'update'])->name('update');
         Route::patch('/{id}/toggle',     [MasterCekMappingController::class, 'toggle'])->name('toggle');
+    });
+
+    // Master Doc Workflow (in-app help/tutorial CRUD)
+    Route::prefix('master/doc-workflow')->name('master.doc-workflow.')->group(function () {
+        Route::get('/',                  [MasterDocWorkflowController::class, 'index'])->name('index');
+        Route::get('/create',            [MasterDocWorkflowController::class, 'create'])->name('create');
+        Route::post('/',                 [MasterDocWorkflowController::class, 'store'])->name('store');
+        Route::get('/{id}/edit',         [MasterDocWorkflowController::class, 'edit'])->name('edit');
+        Route::put('/{id}',              [MasterDocWorkflowController::class, 'update'])->name('update');
+        Route::patch('/{id}/toggle',     [MasterDocWorkflowController::class, 'toggle'])->name('toggle');
+        Route::delete('/{id}',           [MasterDocWorkflowController::class, 'destroy'])->name('destroy');
+    });
+
+    // Public Help Center (viewer)
+    Route::prefix('help')->name('help.')->group(function () {
+        Route::get('/',          [HelpController::class, 'index'])->name('index');
+        Route::get('/{kode}',    [HelpController::class, 'show'])->name('show');
     });
 
     // ============================================================
