@@ -146,20 +146,24 @@ class BeritaAcaraV2Controller extends Controller
             ->limit(10)
             ->get();
 
-        // Recent BA — JOIN master_employees + Tr_PICA_Emp_h (latest PICA per BA via NoBA)
-        // Subquery: PICA terbaru per BA (1 BA bisa punya multiple PICA, ambil yg paling baru)
-        $latestPicaSub = DB::table('Tr_PICA_Emp_h')
-            ->select('NoBA', DB::raw('MAX(Date_PICA) as last_pica_date'))
+        // Recent BA — JOIN dengan subquery (anti-dup karena master_employees punya emp_id
+        // duplicate ~1625 row, dan PICA bisa multi-row per BA dengan MAX date sama).
+
+        // Subquery 1: 1 emp_name per emp_id
+        $empSub = DB::table('master_employees')
+            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
+            ->groupBy('emp_id');
+
+        // Subquery 2: PICA terbaru per BA + ambil 1 code via MAX(id)
+        $picaSub = DB::table('Tr_PICA_Emp_h')
+            ->select('NoBA', DB::raw('MAX(Date_PICA) as pica_date'), DB::raw('MAX(Tr_Pica_Emp_h_Code) as pica_kode'))
             ->whereNotNull('NoBA')
+            ->where('NoBA', '!=', '')
             ->groupBy('NoBA');
 
         $recent = (clone $base)
-            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id')
-            ->leftJoinSub($latestPicaSub, 'lp', 'lp.NoBA', '=', 'ba.Tr_BA_Main_Code')
-            ->leftJoin('Tr_PICA_Emp_h as pica', function ($j) {
-                $j->on('pica.NoBA', '=', 'ba.Tr_BA_Main_Code')
-                  ->on('pica.Date_PICA', '=', 'lp.last_pica_date');
-            })
+            ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code')
+            ->leftJoinSub($picaSub, 'pica', 'pica.NoBA', '=', 'ba.Tr_BA_Main_Code')
             ->select(
                 'ba.Tr_BA_Main_Code as kode',
                 'ba.Ms_BA_type_Code as konteks',
@@ -168,8 +172,8 @@ class BeritaAcaraV2Controller extends Controller
                 'me.emp_name as emp_name',
                 'ba.Ms_Pelapor_Code as pelapor',
                 'ba.BA_Desc as deskripsi',
-                'pica.Tr_Pica_Emp_h_Code as pica_kode',
-                'pica.Date_PICA as pica_date'
+                'pica.pica_kode',
+                'pica.pica_date'
             )
             ->orderByDesc('ba.rec_datecreated')
             ->limit($perPage)
@@ -243,8 +247,12 @@ class BeritaAcaraV2Controller extends Controller
         }
 
         // PICA v2 yang link ke BA ini (Fase 6 — BA↔PICA integration)
+        // master_employees duplicate-safe via subquery
+        $empSubPica = DB::table('master_employees')
+            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
+            ->groupBy('emp_id');
         $picaListRaw = DB::table('Tr_PICA_Emp_h as h')
-            ->leftJoin('master_employees as me', 'me.emp_id', '=', 'h.Emp_Code')
+            ->leftJoinSub($empSubPica, 'me', 'me.emp_id', '=', 'h.Emp_Code')
             ->where('h.NoBA', $kode)
             ->orderByDesc('h.Date_PICA')
             ->get([
@@ -435,8 +443,13 @@ class BeritaAcaraV2Controller extends Controller
     {
         $perPage = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 20;
 
+        // master_employees punya emp_id duplicate (~1625) — pakai subquery aggregate
+        $empSub = DB::table('master_employees')
+            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
+            ->groupBy('emp_id');
+
         $query = DB::table('Tr_Ba_Main_New as ba')
-            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id');
+            ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code');
 
         if ($request->filled('emp_code'))    $query->where('ba.Ms_Emp_Code', $request->emp_code);
         if ($request->filled('pelapor'))     $query->where('ba.Ms_Pelapor_Code', $request->pelapor);
