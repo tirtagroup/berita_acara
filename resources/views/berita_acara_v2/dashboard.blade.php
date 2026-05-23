@@ -199,39 +199,56 @@
     if (typeof $.fn.DataTable === 'undefined') return;
 
     function initRecentBaDataTable(tableEl) {
-      // Tambah row header kedua untuk filter per kolom
       const $table = $(tableEl);
       if ($table.data('dt-initialized')) return;
       $table.data('dt-initialized', true);
 
-      // Clone thead row untuk filter
+      // Tambah row filter di thead SEBELUM init DataTables
       const $thead = $table.find('thead');
+      const $headerRow = $thead.find('tr:first');
+      const colCount = $headerRow.find('th').length;
       const $filterRow = $('<tr class="dt-filter-row"></tr>');
-      $table.find('thead tr:first th').each(function (i) {
-        const label = $(this).text().trim();
-        // Skip filter di kolom yang tidak make sense untuk filter teks (mis. "Konteks" pakai dropdown)
-        $filterRow.append('<th><input type="text" class="form-control form-control-sm" placeholder="Filter ' + label + '..."></th>');
-      });
+      for (let i = 0; i < colCount; i++) {
+        const label = $headerRow.find('th').eq(i).text().trim();
+        $filterRow.append(
+          '<th>' +
+            '<input type="text" class="form-control form-control-sm dt-col-filter" ' +
+            'placeholder="Filter ' + label + '..." autocomplete="off">' +
+          '</th>'
+        );
+      }
       $thead.append($filterRow);
 
       const dt = $table.DataTable({
-        paging: false,         // No pagination (max 50/100 rows from server)
+        paging: false,
         info: false,
         ordering: true,
         searching: true,
-        dom: 't',              // hide top toolbar (cuma tampil table)
-        orderCellsTop: true,   // sorting on row pertama (label header), bukan row kedua (filter input)
-        order: [[0, 'desc']],  // default sort by tanggal BA desc
+        dom: 't',
+        orderCellsTop: true,   // sort dari row 1 (label) saja
+        order: [[0, 'desc']],
       });
 
-      // Bind per-column filter
-      $filterRow.find('input').on('keyup change', function () {
-        const colIdx = $(this).parent().index();
-        dt.column(colIdx).search(this.value).draw();
+      // Pakai pattern DataTables official: columns().every() + bind ke header(i)
+      dt.columns().every(function () {
+        const column = this;
+        const $input = $('input.dt-col-filter', column.header());
+        // Above selector tidak work karena header() = row 1 th (yang punya label).
+        // Cari input di filter row eq same index:
+        const colIdx = column.index();
+        const $filterInput = $filterRow.find('th').eq(colIdx).find('input.dt-col-filter');
+
+        $filterInput.on('keyup change input clear', function () {
+          if (column.search() !== this.value) {
+            column.search(this.value, false, false).draw();
+          }
+        });
       });
 
-      // Prevent sort triggered by clicking filter input
-      $filterRow.find('input').on('click', function (e) { e.stopPropagation(); });
+      // Prevent sort triggered by clicking di filter input
+      $filterRow.find('input').on('click mousedown', function (e) {
+        e.stopPropagation();
+      });
     }
 
     // Init untuk tab Overview (visible saat load)
