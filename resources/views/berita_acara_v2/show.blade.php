@@ -26,6 +26,7 @@
       @endif
     </h4>
     <div class="d-flex gap-2 flex-wrap">
+      @include('components._help_button', ['slug' => 'ba-edit'])
       @if (!empty($canEdit))
         <a href="{{ route('berita-acara-v2.edit', ['kode' => $ba->Tr_BA_Main_Code]) }}" class="btn btn-warning">
           <i class="bx bx-edit"></i> Edit BA

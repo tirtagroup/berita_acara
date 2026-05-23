@@ -26,9 +26,12 @@
       {{ $kode }}
       <span class="badge bg-label-{{ $isDone ? 'success' : 'primary' }} ms-2">{{ $pica->Status_PICA }}</span>
     </span>
-    <a href="{{ route('pica-v2.discussion', ['kode' => $kode]) }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bx bx-chat"></i> Lihat Discussion
-    </a>
+    <div class="d-flex gap-2">
+      @include('components._help_button', ['slug' => 'pica-meeting'])
+      <a href="{{ route('pica-v2.discussion', ['kode' => $kode]) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bx bx-chat"></i> Lihat Discussion
+      </a>
+    </div>
   </h4>
 
   @if (session('success'))

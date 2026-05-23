@@ -7,9 +7,12 @@
 
   <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center">
     <span><span class="text-muted fw-light">Master /</span> Konteks</span>
-    <a href="{{ route('master.konteks.create') }}" class="btn btn-primary">
-      <i class="bx bx-plus"></i> Tambah Konteks
-    </a>
+    <div class="d-flex gap-2">
+      @include('components._help_button', ['slug' => 'master-konteks'])
+      <a href="{{ route('master.konteks.create') }}" class="btn btn-primary">
+        <i class="bx bx-plus"></i> Tambah Konteks
+      </a>
+    </div>
   </h4>
 
   @if (session('success'))

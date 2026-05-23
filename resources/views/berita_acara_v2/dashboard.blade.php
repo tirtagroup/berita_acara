@@ -19,6 +19,7 @@
     <h4 class="fw-bold py-3 mb-0">
       <span class="text-muted fw-light">Berita Acara /</span> Dashboard
     </h4>
+    @include('components._help_button', ['slug' => 'workflow-overview'])
   </div>
 
   {{-- Filter --}}

@@ -5,8 +5,9 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 
-  <h4 class="fw-bold py-3 mb-3">
-    <span class="text-muted fw-light">Master /</span> Mapping Konteks × Kategori
+  <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center">
+    <span><span class="text-muted fw-light">Master /</span> Mapping Konteks × Kategori</span>
+    @include('components._help_button', ['slug' => 'master-mapping'])
   </h4>
 
   <div class="alert alert-info">

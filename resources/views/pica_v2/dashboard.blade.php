@@ -29,6 +29,7 @@
       <span class="text-muted fw-light">PICA /</span> Dashboard
     </h4>
     <div class="d-flex gap-2">
+      @include('components._help_button', ['slug' => 'pica-workflow'])
       <a href="{{ route('pica-v2.list') }}" class="btn btn-sm btn-outline-secondary">
         <i class="bx bx-list-ul"></i> List PICA
       </a>

@@ -16,6 +16,7 @@
   <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span><span class="text-muted fw-light">Master /</span> Mapping Opsi × Konteks</span>
     <div class="d-flex gap-2 flex-wrap">
+      @include('components._help_button', ['slug' => 'master-mapping'])
       <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modal-add-opsi">
         <i class="bx bx-plus"></i> Opsi Baru
       </button>

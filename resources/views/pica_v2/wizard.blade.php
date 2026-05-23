@@ -17,8 +17,9 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 
-  <h4 class="fw-bold py-3 mb-3">
-    <span class="text-muted fw-light">PICA /</span> Input Baru (Wizard)
+  <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center">
+    <span><span class="text-muted fw-light">PICA /</span> Input Baru (Wizard)</span>
+    @include('components._help_button', ['slug' => 'pica-create'])
   </h4>
 
   @if (session('success'))

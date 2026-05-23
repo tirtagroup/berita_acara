@@ -36,8 +36,16 @@
 
 <div class="container-xxl flex-grow-1 container-p-y">
 
-  <h4 class="fw-bold py-3 mb-3">
-    <span class="text-muted fw-light">PICA /</span> Discussion
+  @php
+    // Pilih help slug yang paling relevant berdasarkan status + role pelaku
+    $helpSlug = $isPelaku
+      ? 'pica-pelaku-guide'
+      : ($isMeeting ? 'pica-meeting' : 'pica-workflow');
+  @endphp
+
+  <h4 class="fw-bold py-3 mb-3 d-flex justify-content-between align-items-center">
+    <span><span class="text-muted fw-light">PICA /</span> Discussion</span>
+    @include('components._help_button', ['slug' => $helpSlug])
   </h4>
 
   @if (session('success'))

@@ -19,9 +19,12 @@
       <code class="fs-6">{{ $ba->Tr_BA_Main_Code }}</code>
       <span class="badge bg-label-primary ms-2">{{ $ba->Ms_BA_type_Code }}</span>
     </span>
-    <a href="{{ route('berita-acara-v2.show', ['kode' => $ba->Tr_BA_Main_Code]) }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bx bx-arrow-back"></i> Kembali ke Detail
-    </a>
+    <div class="d-flex gap-2">
+      @include('components._help_button', ['slug' => 'ba-edit'])
+      <a href="{{ route('berita-acara-v2.show', ['kode' => $ba->Tr_BA_Main_Code]) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bx bx-arrow-back"></i> Kembali ke Detail
+      </a>
+    </div>
   </h4>
 
   @if (session('success'))
