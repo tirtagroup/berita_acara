@@ -90,6 +90,14 @@
       {{-- Form add jawaban/komentar --}}
       @if (!$isLocked)
         <hr class="my-2">
+        @php
+          $isDraftPhase = isset($isPreparing) && $isPreparing;
+          $placeholder = $q->tipe === 'pernyataan'
+            ? 'Reasoning (opsional bila pilih sikap)...'
+            : ($isPelaku
+                ? ($isDraftPhase ? 'Siapkan draft jawaban (final-nya di-mark saat meeting)...' : 'Tulis jawaban...')
+                : 'Tulis komentar/follow-up...');
+        @endphp
         <form method="POST" action="{{ route('pica-v2.jawaban.add', ['kode' => $pica->Tr_Pica_Emp_h_Code, 'id' => $q->id]) }}">
           @csrf
           @if ($q->tipe === 'pernyataan')
@@ -107,7 +115,7 @@
           @endif
           <div class="d-flex gap-2">
             <textarea name="jawaban" class="form-control form-control-sm" rows="2"
-              placeholder="{{ $q->tipe === 'pernyataan' ? 'Reasoning (opsional bila pilih sikap)...' : 'Tulis jawaban/komentar...' }}"></textarea>
+              placeholder="{{ $placeholder }}"></textarea>
             <button class="btn btn-sm btn-primary align-self-end" type="submit">
               <i class="bx bx-send"></i>
             </button>

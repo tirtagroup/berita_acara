@@ -13,8 +13,8 @@
 @section('content')
 @php
   $kode = $pica->Tr_Pica_Emp_h_Code;
-  $isClosed = $pica->Status_PICA === 'CLOSED';
-  $isReadOnly = $isClosed || $isPelaku; // Pelaku read-only
+  $isDone = $pica->Status_PICA === 'DONE';
+  $isReadOnly = $isDone || $isPelaku; // Pelaku read-only
   $canEditG = $isPic && !$isReadOnly;   // Section G hanya PIC
 @endphp
 
@@ -24,7 +24,7 @@
     <span>
       <span class="text-muted fw-light">PICA / Report /</span>
       {{ $kode }}
-      <span class="badge bg-label-{{ $isClosed ? 'success' : 'primary' }} ms-2">{{ $pica->Status_PICA }}</span>
+      <span class="badge bg-label-{{ $isDone ? 'success' : 'primary' }} ms-2">{{ $pica->Status_PICA }}</span>
     </span>
     <a href="{{ route('pica-v2.discussion', ['kode' => $kode]) }}" class="btn btn-sm btn-outline-secondary">
       <i class="bx bx-chat"></i> Lihat Discussion
@@ -286,24 +286,33 @@
 
   </div>
 
-  {{-- ============ CLOSE PICA ============ --}}
-  @if ($isPic && $pica->Status_PICA === 'ACTION_PLANNING')
+  {{-- ============ SET DONE ============ --}}
+  @if ($isPic && $pica->Status_PICA === 'FINALIZED')
     <div class="card border-success mt-3">
       <div class="card-body d-flex justify-content-between align-items-center">
         <div>
-          <strong>Tutup PICA → CLOSED</strong>
+          <strong>Set PICA → DONE</strong>
           <small class="d-block text-muted">
-            Gate: minimal 1 corrective + 1 preventive action + Section G closure_date harus diisi.
+            Gate: minimal 1 corrective + 1 preventive action + Section G closure_date + pernyataan pelaku signed.
           </small>
         </div>
-        <form method="POST" action="{{ route('pica-v2.report.close', ['kode' => $kode]) }}"
-              onsubmit="return confirm('Tutup PICA permanen? Setelah CLOSED, report tidak bisa diubah lagi.');">
+        <form method="POST" action="{{ route('pica-v2.report.done', ['kode' => $kode]) }}"
+              onsubmit="return confirm('Set PICA jadi DONE? Setelah DONE, report tidak bisa diubah lagi.');">
           @csrf
           <button class="btn btn-success">
-            <i class="bx bx-check-double"></i> Tutup PICA
+            <i class="bx bx-check-double"></i> Set DONE
           </button>
         </form>
       </div>
+    </div>
+  @elseif ($pica->Status_PICA === 'DONE')
+    <div class="alert alert-success mt-3">
+      <i class="bx bx-check-circle"></i>
+      <strong>PICA sudah DONE</strong>
+      @if (!empty($pica->done_at))
+        — di-set oleh <b>{{ $pica->done_by }}</b>
+        pada {{ \Carbon\Carbon::parse($pica->done_at)->format('d M Y H:i') }}
+      @endif
     </div>
   @endif
 

@@ -9,15 +9,15 @@
     'DRAFT'           => 'secondary',
     'PREPARING'       => 'info',
     'MEETING'         => 'warning',
-    'ACTION_PLANNING' => 'primary',
-    'CLOSED'          => 'success',
+    'FINALIZED' => 'primary',
+    'DONE'          => 'success',
     'Belum Closing'   => 'dark',
   ][$status] ?? 'secondary';
 
   $canAddQ      = $isPic || $isDewan;
   $isPreparing  = $status === 'PREPARING';
   $isMeeting    = $status === 'MEETING';
-  $isLocked     = in_array($status, ['ACTION_PLANNING', 'CLOSED']);
+  $isLocked     = in_array($status, ['FINALIZED', 'DONE']);
   $canAddQNow   = $canAddQ && in_array($status, ['PREPARING', 'MEETING']);
 
   // Group participants per role
@@ -28,7 +28,7 @@
   $pernyataanSigned = !empty($pica->pernyataan_signed_at);
   $pernyataanText   = $pica->pernyataan_pelaku ?: $pernyataanDefault;
 
-  // Gate check for MEETING → ACTION_PLANNING
+  // Gate check for MEETING → FINALIZED
   $hasilFilled   = !empty(trim($pica->hasil_meeting_pic ?? ''));
   $allWajibFinal = $totalWajib === 0 || $terisiWajib >= $totalWajib;
   $canFinishMeeting = $isMeeting && $isPic && $hasilFilled && $allWajibFinal && $pernyataanSigned;
@@ -83,7 +83,7 @@
 
         {{-- Phase action buttons --}}
         <div class="d-flex gap-2 flex-wrap">
-          @if (in_array($status, ['ACTION_PLANNING', 'CLOSED']))
+          @if (in_array($status, ['FINALIZED', 'DONE']))
             <a href="{{ route('pica-v2.report', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}" class="btn btn-sm btn-primary">
               <i class="bx bx-file"></i> Buka Report
             </a>
@@ -112,10 +112,10 @@
             <form method="POST" action="{{ route('pica-v2.phase.toggle', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}"
                   onsubmit="return confirm('Selesai meeting & lanjut ke Action Planning?');">
               @csrf
-              <input type="hidden" name="target" value="ACTION_PLANNING">
+              <input type="hidden" name="target" value="FINALIZED">
               <button class="btn btn-success btn-sm" {{ !$canFinishMeeting ? 'disabled' : '' }}
-                      title="{{ $canFinishMeeting ? 'Selesai meeting → Action Planning' : 'Belum siap: cek gate di bawah' }}">
-                <i class="bx bx-check-double"></i> Selesai Meeting →
+                      title="{{ $canFinishMeeting ? 'Selesai meeting → FINALIZED' : 'Belum siap: cek gate di bawah' }}">
+                <i class="bx bx-check-double"></i> Selesai Meeting → FINALIZED
               </button>
             </form>
           @endif
@@ -184,15 +184,25 @@
   @if ($isPreparing)
     <div class="alert alert-info">
       <i class="bx bx-info-circle"></i>
-      <strong>Fase 1: PERSIAPAN.</strong>
-      PIC + Dewan siapkan agenda pembahasan & list pertanyaan. Pelaku boleh kasih komentar awal.
-      Saat siap → PIC klik <em>Mulai Meeting PICA</em>.
+      <strong>Fase 1: PICA PLAN.</strong>
+      PIC + Dewan siapkan agenda pembahasan & list pertanyaan.
+      <strong>Pelaku</strong> juga sudah bisa akses untuk siapkan draft jawaban (belum final).
+      Saat semua siap → PIC klik <em>Mulai Meeting PICA</em>.
     </div>
   @elseif ($isMeeting)
     <div class="alert alert-warning">
       <i class="bx bx-time"></i>
       <strong>Fase 2: MEETING BERLANGSUNG.</strong>
-      PIC catat hasil meeting · Pelaku jawab pertanyaan + buat pernyataan formal · Setelah lengkap PIC klik <em>Selesai Meeting</em>.
+      Semua role akses page yang sama, isi sesuai login:
+      PIC catat <em>Hasil Meeting</em> · Pelaku jawab pertanyaan + buat pernyataan formal · Dewan kasih komentar.
+      Setelah lengkap PIC klik <em>Selesai Meeting → FINALIZED</em>.
+    </div>
+  @elseif ($status === 'FINALIZED')
+    <div class="alert alert-primary">
+      <i class="bx bx-edit"></i>
+      <strong>Fase 3: FINALIZED.</strong>
+      Meeting selesai. PIC + Dewan susun corrective/preventive action di Report.
+      Saat semua selesai → PIC klik <em>Set DONE</em> di halaman report.
     </div>
   @elseif ($isLocked)
     <div class="alert alert-secondary">
@@ -236,7 +246,9 @@
         <div class="card h-100">
           <div class="card-header py-2">
             <strong><i class="bx bx-list-ul"></i> Agenda Pembahasan</strong>
-            <small class="text-muted d-block">PIC + Dewan: bullet list topik yang akan dibahas saat meeting.</small>
+            <small class="text-muted d-block">
+              PIC + Dewan: bullet list topik meeting. Pelaku: bisa lihat agenda untuk siapkan diri.
+            </small>
           </div>
           <div class="card-body">
             <form method="POST" action="{{ route('pica-v2.agenda.save', ['kode' => $pica->Tr_Pica_Emp_h_Code]) }}">

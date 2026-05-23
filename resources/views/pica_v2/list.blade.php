@@ -8,11 +8,11 @@
     'DRAFT'           => 'secondary',
     'PREPARING'       => 'info',
     'MEETING'  => 'warning',
-    'ACTION_PLANNING' => 'primary',
-    'CLOSED'          => 'success',
+    'FINALIZED' => 'primary',
+    'DONE'          => 'success',
     'Belum Closing'   => 'dark',  // legacy
   ];
-  $allStatuses = ['DRAFT', 'PREPARING', 'MEETING', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
+  $allStatuses = ['DRAFT', 'PREPARING', 'MEETING', 'FINALIZED', 'DONE', 'Belum Closing'];
 @endphp
 
 <div class="container-xxl flex-grow-1 container-p-y">

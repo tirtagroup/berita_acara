@@ -206,8 +206,8 @@
       'DRAFT'           => 'secondary',
       'PREPARING'       => 'info',
       'MEETING'         => 'warning',
-      'ACTION_PLANNING' => 'primary',
-      'CLOSED'          => 'success',
+      'FINALIZED'       => 'primary',
+      'DONE'            => 'success',
     ];
   @endphp
   <div class="card mb-3">

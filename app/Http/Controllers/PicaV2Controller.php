@@ -325,7 +325,7 @@ class PicaV2Controller extends Controller
             $jawabanByQ = $jawabanRows->groupBy('pertanyaan_id');
         }
 
-        // Wajib jawab progress (untuk gate MEETING → ACTION_PLANNING)
+        // Wajib jawab progress (untuk gate MEETING → FINALIZED)
         $totalWajib   = $pertanyaanList->where('wajib_jawab', 1)->count();
         $terisiWajib  = $pertanyaanList
             ->where('wajib_jawab', 1)
@@ -384,7 +384,7 @@ class PicaV2Controller extends Controller
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
         abort_unless($pica, 404);
 
-        // Status check — tidak boleh tambah pertanyaan kalau sudah ACTION_PLANNING/CLOSED
+        // Status check — tidak boleh tambah pertanyaan kalau sudah FINALIZED/DONE
         if (!in_array($pica->Status_PICA, ['PREPARING', 'MEETING'])) {
             return back()->withErrors(['add_q' => 'Tidak bisa tambah pertanyaan saat status ' . $pica->Status_PICA]);
         }
@@ -495,13 +495,13 @@ class PicaV2Controller extends Controller
     /**
      * Transisi status PICA. Aturan v3:
      *   - PREPARING → MEETING : PIC only (mulai meeting). Set meeting_started_at.
-     *   - MEETING → ACTION_PLANNING : PIC, gate: semua wajib_jawab is_final + pernyataan signed + hasil_meeting_pic tidak kosong.
+     *   - MEETING → FINALIZED : PIC, gate: semua wajib_jawab is_final + pernyataan signed + hasil_meeting_pic tidak kosong.
      *   - MEETING → PREPARING : PIC, batalkan meeting (set meeting_started_at NULL).
-     *   - ACTION_PLANNING → CLOSED : Fase 4 (via closePica()).
+     *   - FINALIZED → DONE : Fase 4 (via closePica()).
      */
     public function togglePhase(Request $request, string $kode)
     {
-        $target = $request->input('target'); // 'MEETING' | 'ACTION_PLANNING' | 'BACK_TO_PREPARING'
+        $target = $request->input('target'); // 'MEETING' | 'FINALIZED' | 'BACK_TO_PREPARING'
 
         $user = auth()->user();
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
@@ -525,9 +525,9 @@ class PicaV2Controller extends Controller
                     ]);
                 return back()->with('success', 'Meeting PICA dimulai. Silakan catat hasil pembahasan, pelaku jawab pertanyaan + tanda tangan pernyataan.');
 
-            case 'ACTION_PLANNING':
+            case 'FINALIZED':
                 abort_unless($pica->Status_PICA === 'MEETING', 422, 'Hanya dari MEETING.');
-                abort_unless($isPic, 403, 'Hanya PIC yang boleh lanjut ke ACTION_PLANNING.');
+                abort_unless($isPic, 403, 'Hanya PIC yang boleh lanjut ke FINALIZED.');
 
                 // Gate validation
                 $unanswered = DB::table('tr_pica_pertanyaan_d as q')
@@ -550,12 +550,12 @@ class PicaV2Controller extends Controller
 
                 DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
                     ->update([
-                        'Status_PICA' => 'ACTION_PLANNING',
+                        'Status_PICA' => 'FINALIZED',
                         'meeting_ended_at' => $now,
                         'updated_at' => $now,
                     ]);
                 return redirect()->route('pica-v2.report', ['kode' => $kode])
-                    ->with('success', 'Meeting selesai. Status → ACTION_PLANNING. Silakan susun corrective & preventive action.');
+                    ->with('success', 'Meeting selesai. Status → FINALIZED. Silakan susun corrective & preventive action.');
 
             case 'BACK_TO_PREPARING':
                 abort_unless($pica->Status_PICA === 'MEETING', 422, 'Hanya dari MEETING.');
@@ -788,9 +788,9 @@ TXT;
         $isParticipant = $isPic || $isDewan || $isPelaku;
         abort_unless($isParticipant, 403);
 
-        // Report hanya boleh diakses sejak ACTION_PLANNING
-        abort_unless(in_array($pica->Status_PICA, ['ACTION_PLANNING', 'CLOSED']), 403,
-            'Report hanya tersedia setelah PICA mencapai status ACTION_PLANNING. Status saat ini: ' . $pica->Status_PICA);
+        // Report hanya boleh diakses sejak FINALIZED
+        abort_unless(in_array($pica->Status_PICA, ['FINALIZED', 'DONE']), 403,
+            'Report hanya tersedia setelah PICA mencapai status FINALIZED. Status saat ini: ' . $pica->Status_PICA);
 
         // Auto-create + auto-populate dari Q&A bila belum ada
         $report = DB::table('tr_pica_reports')->where('tr_pica_main_code', $kode)->first();
@@ -842,7 +842,7 @@ TXT;
             ? DB::table('users')->where('id', $report->section_g_approver_id)->first(['id', 'username', 'name'])
             : null;
 
-        $isLocked = $pica->Status_PICA === 'CLOSED' || !$isPic && !$isDewan; // pelaku read-only
+        $isLocked = $pica->Status_PICA === 'DONE' || !$isPic && !$isDewan; // pelaku read-only
 
         return view('pica_v2.report', compact(
             'pica', 'report', 'whys', 'correctives', 'preventives',
@@ -1064,19 +1064,20 @@ TXT;
     }
 
     /**
-     * Tutup PICA → status CLOSED.
-     * Gate: ≥1 corrective + ≥1 preventive + section_g_closure_date filled.
+     * Set DONE: PIC tandai PICA sudah final (semua dibahas, diputuskan, pernyataan signed).
+     * Gate: ≥1 corrective + ≥1 preventive + section_g_closure_date + pernyataan signed.
+     * Alias method lama `closePica` di-rename ke setDone.
      */
-    public function closePica(Request $request, string $kode)
+    public function setDone(Request $request, string $kode)
     {
         $user = auth()->user();
         $roles = $this->myRoles($kode, $user->id);
-        abort_unless(in_array('pic', $roles, true), 403, 'Hanya PIC yang boleh close PICA.');
+        abort_unless(in_array('pic', $roles, true), 403, 'Hanya PIC yang boleh set PICA DONE.');
 
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
         abort_unless($pica, 404);
-        abort_unless($pica->Status_PICA === 'ACTION_PLANNING', 422,
-            'Hanya bisa CLOSED dari ACTION_PLANNING. Status saat ini: ' . $pica->Status_PICA);
+        abort_unless($pica->Status_PICA === 'FINALIZED', 422,
+            'Hanya bisa DONE dari FINALIZED. Status saat ini: ' . $pica->Status_PICA);
 
         $report = DB::table('tr_pica_reports')->where('tr_pica_main_code', $kode)->first();
         abort_unless($report, 422, 'Report belum dibuat.');
@@ -1090,24 +1091,39 @@ TXT;
         if ($corrCount < 1)  $errors[] = 'Minimal 1 corrective action.';
         if ($prevCount < 1)  $errors[] = 'Minimal 1 preventive action.';
         if (!$report->section_g_closure_date) $errors[] = 'Section G closure_date harus diisi.';
+        if (empty($pica->pernyataan_signed_at)) $errors[] = 'Pernyataan pelaku belum ditandatangani.';
         if (!empty($errors)) {
-            return back()->withErrors(['close' => 'Gagal close: ' . implode(' ', $errors)]);
+            return back()->withErrors(['close' => 'Belum bisa set DONE: ' . implode(' ', $errors)]);
         }
 
+        $now = Carbon::now();
         DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)
-            ->update(['Status_PICA' => 'CLOSED', 'updated_at' => Carbon::now()]);
+            ->update([
+                'Status_PICA' => 'DONE',
+                'done_at'     => $now,
+                'done_by'     => $user->username,
+                'updated_at'  => $now,
+            ]);
 
-        return back()->with('success', 'PICA berhasil di-CLOSE. Terima kasih!');
+        return back()->with('success', 'PICA berhasil di-set DONE. Terima kasih!');
     }
 
     /**
-     * Helper: throw 403 bila user bukan role yang diizinkan, atau status PICA bukan ACTION_PLANNING.
+     * Backward-compat alias.
+     */
+    public function closePica(Request $request, string $kode)
+    {
+        return $this->setDone($request, $kode);
+    }
+
+    /**
+     * Helper: throw 403 bila user bukan role yang diizinkan, atau status PICA bukan FINALIZED.
      */
     protected function assertWritable(string $kode, array $allowedRoles): void
     {
         $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
         abort_unless($pica, 404);
-        abort_unless($pica->Status_PICA === 'ACTION_PLANNING', 403,
+        abort_unless($pica->Status_PICA === 'FINALIZED', 403,
             'Report tidak bisa di-edit pada status ' . $pica->Status_PICA);
 
         $roles = $this->myRoles($kode, auth()->id());
@@ -1308,7 +1324,7 @@ TXT;
             ->groupBy('h.Status_PICA')
             ->get()->pluck('cnt', 'Status_PICA')->all();
 
-        $statuses = ['DRAFT', 'PREPARING', 'MEETING', 'ACTION_PLANNING', 'CLOSED', 'Belum Closing'];
+        $statuses = ['DRAFT', 'PREPARING', 'MEETING', 'FINALIZED', 'DONE', 'Belum Closing'];
         $perStatus = [];
         foreach ($statuses as $s) {
             $perStatus[$s] = (int) ($statusRows[$s] ?? 0);

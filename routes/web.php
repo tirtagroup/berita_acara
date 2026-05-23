@@ -867,7 +867,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{kode}/report',                              [PicaV2Controller::class, 'saveReport'])->name('report.save');
         Route::post('/{kode}/report/whys',                         [PicaV2Controller::class, 'saveWhys'])->name('report.whys');
         Route::post('/{kode}/report/actions',                      [PicaV2Controller::class, 'saveActions'])->name('report.actions');
-        Route::post('/{kode}/report/close',                        [PicaV2Controller::class, 'closePica'])->name('report.close');
+        Route::post('/{kode}/report/done',                         [PicaV2Controller::class, 'setDone'])->name('report.done');
+        Route::post('/{kode}/report/close',                        [PicaV2Controller::class, 'closePica'])->name('report.close'); // alias
     });
 
     // AJAX endpoint untuk wizard

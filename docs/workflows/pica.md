@@ -118,7 +118,7 @@ Tr_PICA_Comment (existing) — comments
 
 ---
 
-## Workflow & Status (v3 — 2026-05-22)
+## Workflow & Status (v4 — 2026-05-22)
 
 ```
 [PIC create wizard]
@@ -127,30 +127,39 @@ Tr_PICA_Comment (existing) — comments
 DRAFT (wizard belum submit)
     │ Submit wizard
     ↓
-PREPARING  ← Fase 1: persiapan asynchronous
+PREPARING (= "PICA Plan")  ← Fase 1: persiapan asynchronous
     │ - Kronologi kejadian (read-only dari BA induk)
     │ - Agenda pembahasan (PIC + Dewan edit)
     │ - List pertanyaan + pernyataan (PIC + Dewan tambah)
-    │ - Pelaku boleh komentar (belum is_final)
+    │ - Pelaku akses untuk SIAPKAN DRAFT JAWABAN (belum is_final)
     │ Trigger: PIC klik "Mulai Meeting PICA"
     ↓
-MEETING  ← Fase 2: dokumentasi saat meeting berlangsung
-    │ 3 panel paralel:
+MEETING  ← Fase 2: dokumentasi saat meeting (live: physical / WA call / video)
+    │ Semua role akses page sama, isi sesuai login. 3 tab:
     │ 1. Q&A Forum — pelaku jawab is_final
     │ 2. Hasil Meeting (PIC only) + Catatan Pelaku (Pelaku only)
     │ 3. Pernyataan Pelaku formal (template default, signable)
-    │ Gate ke ACTION_PLANNING:
+    │ Gate "Selesai Meeting → FINALIZED":
     │   ✓ Semua wajib_jawab is_final
     │   ✓ Hasil Meeting (PIC) tidak kosong
     │   ✓ Pernyataan pelaku signed
     ↓
-ACTION_PLANNING
-    │ PIC + dewan susun corrective + preventive action via /pica/v2/report
+FINALIZED  ← Fase 3: post-meeting, susun report formal
+    │ Akses /pica/v2/report editor (sections A-G)
+    │ PIC + Dewan susun corrective + preventive action
+    │ Pelaku read-only
+    │ Gate "Set DONE":
+    │   ✓ ≥1 corrective + ≥1 preventive action
+    │   ✓ section_g_closure_date diisi
+    │   ✓ pernyataan pelaku signed (sudah dari MEETING)
     ↓
-CLOSED
+DONE  ← final, set oleh PIC. done_at + done_by tercatat.
+        Seluruh PICA permanent read-only.
 ```
 
-**Catatan migrasi**: Status `WAITING_PELAKU` (lama) dimigrasi ke `MEETING` di migration `2026_05_22_100000`. Saat itu 0 row dengan status WAITING_PELAKU (data legacy semua "Belum Closing").
+**Catatan migrasi**:
+- v3 (`2026_05_22_100000`): tambah 8 kolom meeting docs + Status WAITING_PELAKU → MEETING
+- v4 (`2026_05_22_110000`): tambah done_at + done_by, rename ACTION_PLANNING → FINALIZED, CLOSED → DONE
 
 **Permission per fase:**
 
