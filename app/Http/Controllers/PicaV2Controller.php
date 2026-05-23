@@ -1158,7 +1158,7 @@ TXT;
         $this->enrichRecent($recent);
 
         return view('pica_v2.dashboard', compact(
-            'tglAwal', 'tglAkhir', 'buKode',
+            'tglAwal', 'tglAkhir', 'konteksKode',
             'konteksList', 'kategoriList', 'stats', 'recent'
         ));
     }
@@ -1218,7 +1218,7 @@ TXT;
         $kategoriList  = PicaKategori::where('active', true)->orderBy('nama')->get();
 
         return view('pica_v2.list', compact(
-            'rows', 'tglAwal', 'tglAkhir', 'buKode',
+            'rows', 'tglAwal', 'tglAkhir', 'konteksKode',
             'status', 'kategoriIds', 'pelakuQ', 'perPage',
             'konteksList', 'kategoriList'
         ));
