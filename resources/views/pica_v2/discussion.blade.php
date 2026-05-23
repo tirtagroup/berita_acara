@@ -231,7 +231,7 @@
             @if ($baKronologi->isNotEmpty())
               <ol class="mb-0 small">
                 @foreach ($baKronologi as $kr)
-                  <li>{{ $kr->detail }}</li>
+                  <li>{{ $kr->kronlogi }}</li>
                 @endforeach
               </ol>
             @else

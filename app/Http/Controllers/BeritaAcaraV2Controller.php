@@ -412,17 +412,17 @@ class BeritaAcaraV2Controller extends Controller
                 ]);
             }
 
-            // Sync kronologi (replace-all)
+            // Sync kronologi (replace-all). Legacy table pakai column 'kronlogi' (typo) + 'tr_ba_kronologi_code'.
             DB::table('tr_ba_kronologi')->where('tr_ba_main_code', $kode)->delete();
             foreach (($request->kronologi ?? []) as $i => $k) {
                 $k = trim($k ?? '');
                 if ($k === '') continue;
                 DB::table('tr_ba_kronologi')->insert([
-                    'tr_ba_main_code' => $kode,
-                    'urutan'          => $i + 1,
-                    'detail'          => $k,
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
+                    'tr_ba_kronologi_code' => 'KRO-' . $kode . '-' . str_pad($i + 1, 3, '0', STR_PAD_LEFT),
+                    'tr_ba_main_code'      => $kode,
+                    'kronlogi'             => $k,
+                    'created_at'           => now(),
+                    'updated_at'           => now(),
                 ]);
             }
 

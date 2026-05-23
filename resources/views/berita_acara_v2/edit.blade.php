@@ -133,7 +133,7 @@
         <div id="kronologi-list">
           @forelse ($kronologi as $i => $k)
             <div class="kronologi-item mb-2 d-flex gap-2">
-              <textarea name="kronologi[]" class="form-control" rows="2" placeholder="Detail kronologi...">{{ $k->detail }}</textarea>
+              <textarea name="kronologi[]" class="form-control" rows="2" placeholder="Detail kronologi...">{{ $k->kronlogi }}</textarea>
               <button type="button" class="btn btn-sm btn-outline-danger btn-remove-kronologi" title="Hapus"><i class="bx bx-trash"></i></button>
             </div>
           @empty

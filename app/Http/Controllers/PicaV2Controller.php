@@ -340,10 +340,11 @@ class PicaV2Controller extends Controller
                 ->where('Tr_BA_Main_Code', $pica->NoBA)
                 ->first(['Tr_BA_Main_Code', 'BA_Desc']);
             if ($baInduk) {
+                // Legacy table column: 'kronlogi' (typo from upstream) + no 'urutan', sort by id
                 $baKronologi = DB::table('tr_ba_kronologi')
                     ->where('tr_ba_main_code', $baInduk->Tr_BA_Main_Code)
-                    ->orderBy('urutan')->orderBy('id')
-                    ->get(['urutan', 'detail']);
+                    ->orderBy('id')
+                    ->get(['id', 'kronlogi']);
             }
         }
 
