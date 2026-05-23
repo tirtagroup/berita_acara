@@ -1,0 +1,56 @@
+---
+# ============================================================================
+# cPanel Deployment Configuration — Laravel BA-PICA
+# ============================================================================
+# Dipakai oleh cPanel "Git Version Control" → tombol "Deploy HEAD Commit".
+#
+# Prerequisites di server cPanel:
+#   - PHP 8.2.x aktif (cPanel → Select PHP Version)
+#   - Composer terinstall (cPanel → Terminal → run: composer --version)
+#   - .env sudah disiapkan manual di server (JANGAN dari git!)
+#   - Subdomain document root sudah arahkan ke {path}/public
+#
+# Setup awal (di cPanel Git Version Control "Create"):
+#   Clone URL  : https://github.com/tirtagroup/berita_acara.git
+#   Repo Path  : /home/tirt3038/ba.tirtagroup.net/laravel-app
+#   Branch     : main
+#
+# Workflow:
+#   1. Developer: git push origin main
+#   2. Admin cPanel: login → Git Version Control → "Update from Remote"
+#      → "Deploy HEAD Commit"
+#   3. Tasks di bawah otomatis jalan
+# ============================================================================
+
+deployment:
+  tasks:
+    # --- Lokasi app (sesuaikan kalau path berbeda) ---
+    - export DEPLOYPATH=/home/tirt3038/ba.tirtagroup.net/laravel-app/
+
+    # --- 1. Composer install (production mode, autoload optimized) ---
+    - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction 2>&1
+
+    # --- 2. Run database migrations (idempotent — skip kalau tidak ada baru) ---
+    - cd $DEPLOYPATH && php artisan migrate --force --no-interaction 2>&1
+
+    # --- 3. Clear cache lama (config, route, view) ---
+    - cd $DEPLOYPATH && php artisan config:clear 2>&1
+    - cd $DEPLOYPATH && php artisan route:clear 2>&1
+    - cd $DEPLOYPATH && php artisan view:clear 2>&1
+    - cd $DEPLOYPATH && php artisan cache:clear 2>&1
+
+    # --- 4. Re-cache untuk production performance ---
+    - cd $DEPLOYPATH && php artisan config:cache 2>&1
+    - cd $DEPLOYPATH && php artisan route:cache 2>&1
+    - cd $DEPLOYPATH && php artisan view:cache 2>&1
+
+    # --- 5. Ensure storage symlink (run sekali aja, idempotent) ---
+    - cd $DEPLOYPATH && php artisan storage:link 2>&1 || true
+
+    # --- 6. Set permissions ke storage + bootstrap/cache (Laravel writable dirs) ---
+    - chmod -R 775 $DEPLOYPATH/storage 2>&1
+    - chmod -R 775 $DEPLOYPATH/bootstrap/cache 2>&1
+
+    # --- 7. Tampilkan summary deploy ---
+    - cd $DEPLOYPATH && echo "✅ Deploy selesai pada $(date '+%Y-%m-%d %H:%M:%S')"
+    - cd $DEPLOYPATH && php artisan --version
