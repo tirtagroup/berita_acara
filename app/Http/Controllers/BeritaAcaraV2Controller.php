@@ -33,14 +33,14 @@ class BeritaAcaraV2Controller extends Controller
         $kategoriId  = $request->input('kategori_id');
         $perPage     = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 50;
 
-        $businessUnits = Konteks::where('active', true)->orderBy('id')->get();
+        $konteksList = Konteks::where('active', true)->orderBy('id')->get();
         $kategoriList  = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
 
         // Pre-compute data per slice (Overview = all, plus per konteks)
         $slices = [];
         $slices['ALL'] = $this->dashboardSlice($tglAwal, $tglAkhir, null, $kategoriId, $perPage);
-        foreach ($businessUnits as $bu) {
-            $slices[$bu->kode] = $this->dashboardSlice($tglAwal, $tglAkhir, $bu->kode, $kategoriId, $perPage);
+        foreach ($konteksList as $k) {
+            $slices[$k->kode] = $this->dashboardSlice($tglAwal, $tglAkhir, $k->kode, $kategoriId, $perPage);
         }
 
         // Payload chart per tab (di-iterate di JS)
@@ -51,23 +51,25 @@ class BeritaAcaraV2Controller extends Controller
             'daily'       => $slices['ALL']['daily'],
             'perKonteks'  => $slices['ALL']['perKonteks'],
             'topKategori' => $slices['ALL']['topKategori'],
+            'topOpsi'     => $slices['ALL']['topOpsi'],
             'perCabang'   => $slices['ALL']['perCabang'],
         ];
-        foreach ($businessUnits as $bu) {
-            $s = $slices[$bu->kode];
+        foreach ($konteksList as $k) {
+            $s = $slices[$k->kode];
             $chartTabsData[] = [
-                'tabId'       => strtolower($bu->kode),
+                'tabId'       => strtolower($k->kode),
                 'showAll'     => false,
                 'daily'       => $s['daily'],
                 'perKonteks'  => $s['perKonteks'],
                 'topKategori' => $s['topKategori'],
+                'topOpsi'     => $s['topOpsi'],
                 'perCabang'   => $s['perCabang'],
             ];
         }
 
         return view('berita_acara_v2.dashboard', compact(
             'tglAwal', 'tglAkhir', 'kategoriId', 'perPage',
-            'businessUnits', 'kategoriList', 'slices', 'chartTabsData'
+            'konteksList', 'kategoriList', 'slices', 'chartTabsData'
         ));
     }
 
@@ -110,14 +112,27 @@ class BeritaAcaraV2Controller extends Controller
                 ->pluck('cnt', 'kode');
         }
 
-        // Top kategori (via pivot baru)
+        // Top kategori (via pivot baru) — COUNT DISTINCT BA biar 1 BA multi-opsi tidak over-count
         $topKategori = DB::table('tr_ba_kategori_d as d')
             ->join('ms_ba_kategori as k', 'd.kategori_id', '=', 'k.id')
             ->join('Tr_Ba_Main_New as ba', 'd.tr_ba_main_code', '=', 'ba.Tr_BA_Main_Code')
             ->whereBetween('ba.Date_BA', [$from, $to])
             ->when($konteksKode, fn($q) => $q->where('ba.Ms_BA_type_Code', $konteksKode))
-            ->select('k.nama', DB::raw('COUNT(*) as cnt'))
+            ->select('k.nama', DB::raw('COUNT(DISTINCT d.tr_ba_main_code) as cnt'))
             ->groupBy('k.nama')
+            ->orderByDesc('cnt')
+            ->limit(10)
+            ->get();
+
+        // Top opsi (deskripsi → COUNT BA)
+        $topOpsi = DB::table('tr_ba_kategori_d as d')
+            ->join('ms_ba_kategori_opsi as o', 'd.opsi_id', '=', 'o.id')
+            ->join('Tr_Ba_Main_New as ba', 'd.tr_ba_main_code', '=', 'ba.Tr_BA_Main_Code')
+            ->whereNotNull('d.opsi_id')
+            ->whereBetween('ba.Date_BA', [$from, $to])
+            ->when($konteksKode, fn($q) => $q->where('ba.Ms_BA_type_Code', $konteksKode))
+            ->select('o.deskripsi', DB::raw('COUNT(DISTINCT d.tr_ba_main_code) as cnt'))
+            ->groupBy('o.deskripsi')
             ->orderByDesc('cnt')
             ->limit(10)
             ->get();
@@ -165,6 +180,7 @@ class BeritaAcaraV2Controller extends Controller
             'daily'       => $daily,
             'perKonteks'  => $perKonteks,
             'topKategori' => $topKategori,
+            'topOpsi'     => $topOpsi,
             'perCabang'   => $perCabang,
             'recent'      => $recent,
         ];
@@ -262,10 +278,153 @@ class BeritaAcaraV2Controller extends Controller
         }
         $picaList = $picaListRaw;
 
+        $canEdit = $this->canEditBa($ba);
+        $isAdmin = $this->isAdmin();
+
         return view('berita_acara_v2.show', compact(
             'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval',
-            'picaList'
+            'picaList', 'canEdit', 'isAdmin'
         ));
+    }
+
+    /**
+     * Helper: cek role admin/super_admin/administrator.
+     * DB pakai "Administrator" — match case-insensitive.
+     */
+    protected function isAdmin(): bool
+    {
+        $role = strtolower(auth()->user()->role ?? '');
+        return in_array($role, ['admin', 'super_admin', 'superadmin', 'administrator'], true);
+    }
+
+    /**
+     * Helper: bisa edit BA bila admin, ATAU creator dgn edit_allowed=true.
+     */
+    protected function canEditBa($ba): bool
+    {
+        if ($this->isAdmin()) return true;
+        $username = auth()->user()->username ?? '';
+        return ((bool) ($ba->edit_allowed ?? false))
+            && strcasecmp($username, $ba->Rec_UserCreated ?? '') === 0;
+    }
+
+    /**
+     * Toggle edit_allowed flag (admin only).
+     */
+    public function toggleEditAllowed(Request $request, $kode)
+    {
+        abort_unless($this->isAdmin(), 403, 'Hanya admin yang boleh toggle edit_allowed.');
+
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+
+        $new = !((bool) $ba->edit_allowed);
+        DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)
+            ->update(['edit_allowed' => $new, 'updated_at' => now()]);
+
+        return back()->with('success',
+            $new ? 'Edit BA diizinkan untuk creator.' : 'Edit BA dikunci kembali.');
+    }
+
+    /**
+     * Edit form BA. Permission: admin OR creator+edit_allowed.
+     */
+    public function edit(Request $request)
+    {
+        $kode = $request->query('kode');
+        abort_unless($kode, 404);
+
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+        abort_unless($this->canEditBa($ba), 403, 'Anda tidak diizinkan edit BA ini.');
+
+        $kategoriAttached = DB::table('tr_ba_kategori_d')
+            ->where('tr_ba_main_code', $kode)
+            ->pluck('kategori_id')->all();
+
+        $kronologi = DB::table('tr_ba_kronologi')
+            ->where('tr_ba_main_code', $kode)
+            ->orderBy('id')
+            ->get();
+
+        $kategoriList = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
+        $lokasi  = DB::table('ms_lokasi')->select('lokasi_code', 'lokasi_desc')->orderBy('lokasi_desc')->get();
+        $company = DB::table('ms_company')->select('company_code', 'description')->orderBy('description')->get();
+        $divisi  = DB::table('ms_subbdivision')->select('subbdiv_code', 'subbdiv_desc')->orderBy('subbdiv_desc')->get();
+
+        return view('berita_acara_v2.edit', compact(
+            'ba', 'kategoriAttached', 'kronologi', 'kategoriList',
+            'lokasi', 'company', 'divisi'
+        ));
+    }
+
+    /**
+     * Update BA dari edit form. Permission: admin OR creator+edit_allowed.
+     */
+    public function update(Request $request, $kode)
+    {
+        $ba = DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->first();
+        abort_unless($ba, 404);
+        abort_unless($this->canEditBa($ba), 403);
+
+        $request->validate([
+            'Date_BA'       => ['required', 'date'],
+            'Ms_Emp_Code'   => ['required', 'string', 'max:50'],
+            'Ms_Emp_Div'    => ['nullable', 'string', 'max:50'],
+            'rec_comcode'   => ['nullable', 'string', 'max:50'],
+            'rec_areacode'  => ['nullable', 'string', 'max:50'],
+            'BA_Desc'       => ['required', 'string', 'max:1000'],
+            'kategori_ids'  => ['nullable', 'array'],
+            'kategori_ids.*'=> ['integer', 'exists:ms_ba_kategori,id'],
+            'kronologi'     => ['nullable', 'array'],
+            'kronologi.*'   => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            DB::table('Tr_Ba_Main_New')->where('Tr_BA_Main_Code', $kode)->update([
+                'Date_BA'      => $request->Date_BA,
+                'Ms_Emp_Code'  => $request->Ms_Emp_Code,
+                'Ms_Emp_Div'   => $request->Ms_Emp_Div,
+                'rec_comcode'  => $request->rec_comcode,
+                'rec_areacode' => $request->rec_areacode,
+                'BA_Desc'      => $request->BA_Desc,
+                'updated_at'   => now(),
+            ]);
+
+            // Sync kategori (replace-all strategy)
+            DB::table('tr_ba_kategori_d')->where('tr_ba_main_code', $kode)->delete();
+            foreach (($request->kategori_ids ?? []) as $katId) {
+                DB::table('tr_ba_kategori_d')->insert([
+                    'tr_ba_main_code' => $kode,
+                    'kategori_id'     => (int) $katId,
+                    'opsi_id'         => null,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            // Sync kronologi (replace-all)
+            DB::table('tr_ba_kronologi')->where('tr_ba_main_code', $kode)->delete();
+            foreach (($request->kronologi ?? []) as $i => $k) {
+                $k = trim($k ?? '');
+                if ($k === '') continue;
+                DB::table('tr_ba_kronologi')->insert([
+                    'tr_ba_main_code' => $kode,
+                    'urutan'          => $i + 1,
+                    'detail'          => $k,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('berita-acara-v2.show', ['kode' => $kode])
+                ->with('success', "BA <strong>{$kode}</strong> berhasil diupdate.");
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['update' => 'Gagal update: ' . $e->getMessage()])->withInput();
+        }
     }
 
     /**
@@ -389,14 +548,14 @@ class BeritaAcaraV2Controller extends Controller
 
     public function create()
     {
-        $businessUnits = Konteks::where('active', true)->orderBy('id')->get();
+        $konteksList = Konteks::where('active', true)->orderBy('id')->get();
 
         // Lokasi & company dari master existing
         $lokasi  = DB::table('ms_lokasi')->select('lokasi_code', 'lokasi_desc')->orderBy('lokasi_desc')->get();
         $company = DB::table('ms_company')->select('company_code', 'description')->orderBy('description')->get();
         $divisi  = DB::table('ms_divisi')->select('subbdiv_code', 'subbdiv_desc')->orderBy('subbdiv_desc')->get();
 
-        return view('berita_acara_v2.wizard', compact('businessUnits', 'lokasi', 'company', 'divisi'));
+        return view('berita_acara_v2.wizard', compact('konteksList', 'lokasi', 'company', 'divisi'));
     }
 
     /**
@@ -435,18 +594,18 @@ class BeritaAcaraV2Controller extends Controller
     }
 
     /**
-     * AJAX: list kategori untuk BU tertentu, urutkan wajib → disarankan → opsional.
+     * AJAX: list kategori untuk Konteks tertentu, urutkan wajib → disarankan → opsional.
      */
-    public function kategoriByBu($buKode)
+    public function kategoriByBu($konteksKode)
     {
-        $bu = Konteks::where('kode', $buKode)->first();
-        if (!$bu) return response()->json([], 404);
+        $konteks = Konteks::where('kode', $konteksKode)->first();
+        if (!$konteks) return response()->json([], 404);
 
-        // Ambil HANYA kategori yang mapped ke BU yang dipilih (inner join via whereNotNull).
+        // Ambil HANYA kategori yang mapped ke konteks yang dipilih (inner join).
         $rows = DB::table('ms_ba_kategori as k')
-                    ->join('ms_bu_kategori_mapping as m', function ($j) use ($bu) {
+                    ->join('ms_konteks_kategori_mapping as m', function ($j) use ($konteks) {
                         $j->on('m.kategori_id', '=', 'k.id')
-                          ->where('m.bu_id', '=', $bu->id);
+                          ->where('m.konteks_id', '=', $konteks->id);
                     })
                     ->where('k.active', true)
                     ->select('k.id', 'k.kode', 'k.nama', 'm.level')
@@ -454,14 +613,14 @@ class BeritaAcaraV2Controller extends Controller
                     ->orderBy('k.nama')
                     ->get();
 
-        // Compute domain per kategori berdasarkan BU mana yang punya level WAJIB.
+        // Compute domain per kategori berdasarkan konteks mana yang punya level WAJIB.
         // - Wajib hanya di FNB        → FNB
         // - Wajib hanya di LAKA       → LAKA
-        // - Lainnya (no wajib / wajib di multiple BU / wajib di OP_HR saja) → UMUM
-        $wajibByKategori = DB::table('ms_bu_kategori_mapping as m')
-            ->join('ms_business_unit as bu', 'm.bu_id', '=', 'bu.id')
+        // - Lainnya → UMUM
+        $wajibByKategori = DB::table('ms_konteks_kategori_mapping as m')
+            ->join('ms_konteks as k', 'm.konteks_id', '=', 'k.id')
             ->where('m.level', 'wajib')
-            ->select('m.kategori_id', 'bu.kode')
+            ->select('m.kategori_id', 'k.kode')
             ->get()
             ->groupBy('kategori_id');
 
@@ -472,13 +631,12 @@ class BeritaAcaraV2Controller extends Controller
             } else {
                 $r->domain = 'UMUM';
             }
-            // Bila kategori tidak ada di mapping untuk BU saat ini, default level = 'opsional'
             $r->level = $r->level ?? 'opsional';
         }
 
         return response()->json([
-            'selected_bu' => $buKode,
-            'kategori'    => $rows,
+            'selected_konteks' => $konteksKode,
+            'kategori'         => $rows,
         ]);
     }
 
@@ -495,14 +653,14 @@ class BeritaAcaraV2Controller extends Controller
                     ->where('o.active', true)
                     ->select('o.id as opsi_id', 'm.kode', 'o.deskripsi', 'm.sort_order');
 
-        // Filter by BU bila parameter diberikan
-        if ($buKode = $request->query('bu')) {
-            $query->whereExists(function ($q) use ($buKode) {
+        // Filter by Konteks bila parameter diberikan
+        if ($konteksKode = $request->query('konteks') ?? $request->query('bu')) {
+            $query->whereExists(function ($q) use ($konteksKode) {
                 $q->select(DB::raw(1))
-                  ->from('ms_opsi_bu_mapping as ob')
-                  ->join('ms_business_unit as bu', 'ob.bu_id', '=', 'bu.id')
+                  ->from('ms_opsi_konteks_mapping as ob')
+                  ->join('ms_konteks as k', 'ob.konteks_id', '=', 'k.id')
                   ->whereColumn('ob.opsi_id', 'o.id')
-                  ->where('bu.kode', $buKode);
+                  ->where('k.kode', $konteksKode);
             });
         }
 
@@ -516,7 +674,7 @@ class BeritaAcaraV2Controller extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'bu_kode'            => ['required', 'string', 'exists:ms_business_unit,kode'],
+            'konteks_kode'       => ['required', 'string', 'exists:ms_konteks,kode'],
             'tanggal'            => ['required', 'date'],
             'lokasi_code'        => ['nullable', 'string', 'max:50'],
             'company_code'       => ['nullable', 'string', 'max:50'],
@@ -530,7 +688,7 @@ class BeritaAcaraV2Controller extends Controller
             'kategori.*.opsi.*'  => ['integer', 'exists:ms_ba_kategori_opsi,id'],
             'kronologi'          => ['nullable', 'array'],
             'kronologi.*'        => ['nullable', 'string', 'max:2000'],
-            // Revisi fields (only when bu_kode = REVISI)
+            // Revisi fields (only when konteks_kode = REVISI)
             'code_dokumen'                  => ['nullable', 'string', 'max:100'],
             'alasan_revisi'                 => ['nullable', 'string', 'max:1000'],
             'revisi_detail'                 => ['nullable', 'array'],
@@ -541,7 +699,7 @@ class BeritaAcaraV2Controller extends Controller
         ]);
 
         // Conditional require untuk REVISI BU
-        if ($request->bu_kode === 'REVISI') {
+        if ($request->konteks_kode === 'REVISI') {
             $request->validate([
                 'code_dokumen' => ['required', 'string', 'max:100'],
             ], [
@@ -560,7 +718,7 @@ class BeritaAcaraV2Controller extends Controller
             // 1. Insert header BA
             DB::table('Tr_Ba_Main_New')->insert([
                 'Tr_BA_Main_Code'   => $baCode,
-                'Ms_BA_type_Code'   => $request->bu_kode,
+                'Ms_BA_type_Code'   => $request->konteks_kode,
                 'Ms_Emp_Code'       => $request->emp_code,
                 'Ms_Emp_Div'        => $request->emp_div ?? '',
                 'Ms_Pelapor_Code'   => $user->username ?? 'system',
@@ -613,7 +771,7 @@ class BeritaAcaraV2Controller extends Controller
             }
 
             // 3a. Insert ke 3 tabel legacy bila BU = REVISI
-            if ($request->bu_kode === 'REVISI') {
+            if ($request->konteks_kode === 'REVISI') {
                 $reqCode = 'REQ-' . $now->format('YmdHis') . '-' . str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
                 // Header request revisi
@@ -738,7 +896,7 @@ class BeritaAcaraV2Controller extends Controller
 
                 (new WaQontakService())->sendBaNotification([
                     'ba_code'   => $baCode,
-                    'bu_kode'   => $request->bu_kode,
+                    'bu_kode'   => $request->konteks_kode,
                     'tanggal'   => $request->tanggal,
                     'pelapor'   => $pelaporInfo,
                     'emp_name'  => $empName,
