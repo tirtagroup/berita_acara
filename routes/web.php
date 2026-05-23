@@ -33,6 +33,7 @@ use App\Http\Controllers\MasterKategoriController;
 use App\Http\Controllers\MasterPicaController;
 use App\Http\Controllers\MasterCekMappingController;
 use App\Http\Controllers\MasterDocWorkflowController;
+use App\Http\Controllers\MasterPermissionController;
 use App\Http\Controllers\HelpController;
 use App\Http\Controllers\BeritaAcaraV2Controller;
 use App\Http\Controllers\PicaV2Controller;
@@ -793,6 +794,28 @@ Route::middleware('auth')->group(function () {
         Route::get('/',                  [MasterCekMappingController::class, 'index'])->name('index');
         Route::put('/{id}',              [MasterCekMappingController::class, 'update'])->name('update');
         Route::patch('/{id}/toggle',     [MasterCekMappingController::class, 'toggle'])->name('toggle');
+    });
+
+    // Master Permission System (user level + panel + permission matrix)
+    Route::prefix('master/user-level')->name('master.user-level.')->group(function () {
+        Route::get('/',              [MasterPermissionController::class, 'levelIndex'])->name('index');
+        Route::get('/create',        [MasterPermissionController::class, 'levelCreate'])->name('create');
+        Route::post('/',             [MasterPermissionController::class, 'levelStore'])->name('store');
+        Route::get('/{id}/edit',     [MasterPermissionController::class, 'levelEdit'])->name('edit');
+        Route::put('/{id}',          [MasterPermissionController::class, 'levelUpdate'])->name('update');
+        Route::patch('/{id}/toggle', [MasterPermissionController::class, 'levelToggle'])->name('toggle');
+    });
+    Route::prefix('master/panel')->name('master.panel.')->group(function () {
+        Route::get('/',              [MasterPermissionController::class, 'panelIndex'])->name('index');
+        Route::get('/create',        [MasterPermissionController::class, 'panelCreate'])->name('create');
+        Route::post('/',             [MasterPermissionController::class, 'panelStore'])->name('store');
+        Route::get('/{id}/edit',     [MasterPermissionController::class, 'panelEdit'])->name('edit');
+        Route::put('/{id}',          [MasterPermissionController::class, 'panelUpdate'])->name('update');
+        Route::patch('/{id}/toggle', [MasterPermissionController::class, 'panelToggle'])->name('toggle');
+    });
+    Route::prefix('master/permission-matrix')->name('master.permission-matrix.')->group(function () {
+        Route::get('/',              [MasterPermissionController::class, 'matrix'])->name('index');
+        Route::post('/update',       [MasterPermissionController::class, 'matrixUpdate'])->name('update');
     });
 
     // Master Doc Workflow (in-app help/tutorial CRUD)

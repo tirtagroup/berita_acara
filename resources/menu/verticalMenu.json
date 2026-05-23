@@ -97,6 +97,21 @@
               "url": "/master/doc-workflow",
               "name": "Doc Workflow (Help)",
               "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/user-level",
+              "name": "User Level",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/panel",
+              "name": "Panels",
+              "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/master/permission-matrix",
+              "name": "Permission Matrix",
+              "slug": "forms-basic-inputs"
             }
           ]
         },
