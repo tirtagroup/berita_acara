@@ -25,7 +25,7 @@
 deployment:
   tasks:
     # --- Lokasi app (sesuaikan kalau path berbeda) ---
-    - export DEPLOYPATH=/home/tirt3038/ba.tirtagroup.net/laravel-app/
+    - export DEPLOYPATH=/home/tirt3038/public_html/berita_acara_staging/
 
     # --- 1. Composer install (production mode, autoload optimized) ---
     - cd $DEPLOYPATH && /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction 2>&1
