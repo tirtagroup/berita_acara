@@ -167,6 +167,18 @@
               <label class="form-label">Deskripsi singkat <span class="text-danger">*</span></label>
               <textarea name="deskripsi" class="form-control" rows="3" maxlength="500" required></textarea>
             </div>
+            
+            <div class="col-12">
+              <label class="form-label">Temuan / Issues (Opsional)</label>
+              <textarea name="ba_temuan" class="form-control" rows="3" maxlength="2000" placeholder="Apa yang ditemukan dari investigasi..."></textarea>
+              <small class="text-muted">Detail temuan/masalah yang ditemukan. Opsional.</small>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Rekomendasi / Action Items (Opsional)</label>
+              <textarea name="ba_rekomendasi" class="form-control" rows="3" maxlength="2000" placeholder="Apa yang perlu dilakukan..."></textarea>
+              <small class="text-muted">Rekomendasi atau tindakan lanjutan yang disarankan. Opsional.</small>
+            </div>
 
             {{-- Kronologi (pindah dari step LAKA — wajib untuk semua BA) --}}
             <div class="col-12">
