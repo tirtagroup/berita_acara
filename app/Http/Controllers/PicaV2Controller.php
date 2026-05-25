@@ -242,8 +242,8 @@ class PicaV2Controller extends Controller
             }
 
             DB::commit();
-            return redirect()->route('pica-v2.discussion', ['kode' => $picaCode])
-                ->with('success', "PICA berhasil dibuat dengan kode <strong>{$picaCode}</strong>. Status: <strong>PREPARING</strong> — Dewan & Pelaku boleh tambah pertanyaan/komentar sebelum pelaku mulai menjawab.");
+            return redirect()->route('pica-v2.print', ['kode' => $picaCode])
+                ->with('success', "PICA berhasil dibuat dengan kode <strong>{$picaCode}</strong>. Silakan print dan dapatkan signature dari supervisor, HOD, manager, dan BOD.");
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['submit' => 'Gagal simpan: ' . $e->getMessage()])->withInput();
@@ -1223,6 +1223,17 @@ TXT;
             'status', 'kategoriIds', 'pelakuQ', 'perPage',
             'konteksList', 'kategoriList'
         ));
+    }
+
+    /**
+     * Print PICA form dengan signature blocks untuk approval.
+     */
+    public function print(string $kode)
+    {
+        $pica = DB::table('Tr_PICA_Emp_h')->where('Tr_Pica_Emp_h_Code', $kode)->first();
+        abort_unless($pica, 404, 'PICA tidak ditemukan');
+
+        return view('pica_v2.print', compact('pica'));
     }
 
     /**

@@ -436,6 +436,20 @@ class BeritaAcaraV2Controller extends Controller
     }
 
     /**
+     * Print BA form dengan signature blocks untuk approval.
+     */
+    public function print(string $kode)
+    {
+        $ba = DB::table('Tr_Ba_Main_New')
+            ->where('Tr_BA_Main_Code', $kode)
+            ->first();
+
+        abort_unless($ba, 404, "BA dengan kode {$kode} tidak ditemukan");
+
+        return view('berita_acara_v2.print', compact('ba'));
+    }
+
+    /**
      * List BA dengan filter (emp_code, pelapor, konteks, date).
      * URL: /beritaacara/v2/list?emp_code=X | ?pelapor=Y | ?konteks=Z
      */
@@ -925,8 +939,8 @@ class BeritaAcaraV2Controller extends Controller
             }
             // ────────────────────────────────────────────────────────────────
 
-            return redirect()->route('berita-acara-v2.create')
-                             ->with('success', "BA berhasil dibuat dengan kode <strong>{$baCode}</strong>.");
+            return redirect()->route('berita-acara-v2.print', ['kode' => $baCode])
+                             ->with('success', "BA berhasil dibuat dengan kode <strong>{$baCode}</strong>. Silakan print dan dapatkan signature dari supervisor, HOD, manager, dan BOD.");
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['submit' => 'Gagal simpan: ' . $e->getMessage()])->withInput();
