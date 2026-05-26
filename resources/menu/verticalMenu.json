@@ -2,6 +2,12 @@
 {
   "menu": [
     {
+      "url": "/home-v2",
+      "name": "Home",
+      "icon": "menu-icon tf-icons bx bx-home-circle",
+      "slug": "home"
+    },
+    {
       "url": "/help",
       "name": "Help Center",
       "icon": "menu-icon tf-icons bx bx-help-circle",
@@ -112,6 +118,11 @@
               "url": "/master/permission-matrix",
               "name": "Permission Matrix",
               "slug": "forms-basic-inputs"
+            },
+            {
+              "url": "/user-management/users",
+              "name": "Users",
+              "slug": "forms-basic-inputs"
             }
           ]
         },
@@ -143,7 +154,7 @@
       "name": "Dashboard BA",
       "icon": "menu-icon tf-icons fas fa-home",
       "slug": "forms",
-      "url": "/dashboard_semua_ba"
+      "url": "/beritaacara/v2/dashboard"
     },
     {
       "name": "Create BA",
@@ -151,18 +162,18 @@
       "slug": "forms",
       "submenu": [
         {
-          "url": "/berita_acara_all",
-          "name": "Berita Acara (lama)",
-          "slug": "forms-basic-inputs"
-        },
-        {
-          "url": "/beritaacara/v2/dashboard",
-          "name": "Dashboard BA (baru)",
-          "slug": "forms-basic-inputs"
-        },
-        {
           "url": "/beritaacara/v2/create",
-          "name": "Input BA — Wizard (baru)",
+          "name": "Input BA — Wizard",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/dashboard_semua_ba",
+          "name": "Dashboard BA (legacy)",
+          "slug": "forms-basic-inputs"
+        },
+        {
+          "url": "/berita_acara_all",
+          "name": "Berita Acara (legacy)",
           "slug": "forms-basic-inputs"
         }
       ]

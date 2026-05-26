@@ -35,7 +35,18 @@ class User extends Authenticatable
       'email',
       'verify_key',
       'activate',
+      'level_id',
+      'phone',
+      'user_akses',
     ];
+
+    /**
+     * Relationship: user belongs to one user-level (permission system).
+     */
+    public function userLevel()
+    {
+        return $this->belongsTo(UserLevel::class, 'level_id');
+    }
 
     /**
      * The attributes that should be hidden for serialization.

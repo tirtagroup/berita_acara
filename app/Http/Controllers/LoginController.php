@@ -12,7 +12,7 @@ class LoginController extends Controller
     public function login()
     {
         if (Auth::check()) {
-            return redirect('home');
+            return redirect('/home-v2');
         }else{
             return view('auth/login');
         }
@@ -47,20 +47,20 @@ class LoginController extends Controller
         if (Auth::Attempt($data))
         {
             $user = auth()->user();
-            session()->put('parameter', $user->sub_divisi); 
-            return redirect('home');
+            session()->put('parameter', $user->sub_divisi);
+            return redirect('/home-v2');
         }
         elseif(Auth::Attempt($data2))
-        {   
+        {
             $user = auth()->user();
-            session()->put('parameter', $user->sub_divisi); 
-            return redirect('home_ba');
+            session()->put('parameter', $user->sub_divisi);
+            return redirect('/home-v2');
         }
         elseif(Auth::Attempt($data3))
-        {   
+        {
             $user = auth()->user();
-            session()->put('parameter', $user->sub_divisi); 
-            return redirect('home_ba');
+            session()->put('parameter', $user->sub_divisi);
+            return redirect('/home-v2');
         }
         elseif ($keyCheck != 1)
         {

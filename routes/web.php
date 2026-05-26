@@ -818,6 +818,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/update',       [MasterPermissionController::class, 'matrixUpdate'])->name('update');
     });
 
+    // User Management — assign user-level + toggle active (separate namespace)
+    // Phase 2 nanti: migrate UserLevel/Panel/PermissionMatrix CRUD ke namespace ini juga.
+    Route::prefix('user-management/users')->name('user-management.users.')->group(function () {
+        Route::get('/',                  [\App\Http\Controllers\UserManagement\UserController::class, 'index'])->name('index');
+        Route::get('/{id}/edit',         [\App\Http\Controllers\UserManagement\UserController::class, 'edit'])->name('edit');
+        Route::put('/{id}',              [\App\Http\Controllers\UserManagement\UserController::class, 'update'])->name('update');
+        Route::patch('/{id}/toggle-active', [\App\Http\Controllers\UserManagement\UserController::class, 'toggleActive'])->name('toggle-active');
+    });
+
+    // Unified Home V2 — landing page setelah login (gabung KPI BA + PICA)
+    Route::get('/home-v2', [\App\Http\Controllers\HomeV2Controller::class, 'index'])->name('home-v2.index');
+
     // Master Doc Workflow (in-app help/tutorial CRUD)
     Route::prefix('master/doc-workflow')->name('master.doc-workflow.')->group(function () {
         Route::get('/',                  [MasterDocWorkflowController::class, 'index'])->name('index');
