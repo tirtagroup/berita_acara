@@ -15,7 +15,7 @@ Tiga lapis nilai yang dibangun bertahap:
 | Lapis | Modul | Fokus |
 |---|---|---|
 | Reaktif (sudah ada) | BA, PICA | Catat kejadian → akar masalah → corrective action |
-| Preventif (target 2026) | **SOP** | Kontrol yang seharusnya dijalankan, terhubung ke BA/PICA |
+| Preventif (target 2026) | **SOP**, **Scheduling Resto** | Kontrol yang seharusnya dijalankan (SOP) + jadwal kerja terkontrol (scheduling) — terhubung ke BA/PICA |
 | Proaktif (target 2027) | AI augmentation, Risk Register | Bantu kategorisasi, suggest pertanyaan, gap analysis |
 
 ---
@@ -23,7 +23,7 @@ Tiga lapis nilai yang dibangun bertahap:
 ## Strategic themes
 
 1. **Tutup yang belum kelar** — BA multi-kategori migration, PICA v2 fase 3 (discussion page)
-2. **Ekspansi preventif** — SOP module Tier 2 (full lifecycle), Dashboard executive, Risk Register
+2. **Ekspansi preventif** — SOP module Tier 2 (full lifecycle), **Scheduling Resto T1+T3** (roster + clock-in/out + auto-trigger BA Disiplin), Dashboard executive, Risk Register
 3. **AI augmentation (PARKED)** — pending clearance compliance soal data residency. Slot disiapkan, deliverable tidak commit sampai clearance dapat.
 
 ---
@@ -54,15 +54,17 @@ Tiga lapis nilai yang dibangun bertahap:
 
 ---
 
-### Phase 3 — Integration + Dashboard (November 2026 – Februari 2027, M6–M9)
+### Phase 3 — Integration + Dashboard + Scheduling MVP (November 2026 – Februari 2027, M6–M9)
 
 | Initiative | Deliverable | Effort | Owner |
 |---|---|---|---|
 | **SOP ↔ BA/PICA integration** | Kolom `linked_sop_codes[]` di BA (SOP yang dilanggar/relevan); kolom `target_sop_code` di PICA Action ("action = update SOP-X"); report "SOP yang paling sering dilanggar" | ~6 minggu | Dev A |
 | **Dashboard executive** | KPI cards (incident count, PICA closure rate, avg time-to-close); chart tren per kategori; filter periode (default awal-bulan→hari ini) | ~5 minggu | Dev B |
-| (Opsional) AI features #3+#5 | Suggest pertanyaan probing PICA dari kategori BA; draft corrective + preventive action dari hasil meeting. Conditional on compliance. | ~8 minggu | Dev A/B |
+| **Scheduling Resto T1+T3** | **T1**: shift template (pagi/siang/malam), manager assign staff per minggu, calendar view per outlet/staff, export jadwal. **T3**: clock-in/out (web + simple mobile), real-time on-duty view, **auto-trigger BA Disiplin Operasional saat telat / tidak masuk tanpa kabar** (link ke kategori #14). Schema baru: `ms_shift_template`, `ms_outlet`, `tr_jadwal_d`, `tr_attendance`. | ~10 minggu | Dev A + Dev B (paralel) |
 
-**Exit criteria phase 3**: SOP terhubung dua arah ke BA & PICA; dashboard exec live; minimal 1 fitur AI live kalau clearance dapat.
+**Capacity note Phase 3**: 6 + 5 + 10 = 21 person-week, sedangkan 2 dev × 16 minggu × 75% (potong maintenance) = 24 person-week productive. **Tight tapi feasible**. AI features (Phase 3 original slot) di-shift ke Phase 4.
+
+**Exit criteria phase 3**: SOP terhubung dua arah ke BA & PICA; dashboard exec live; scheduling MVP live di minimal 1 outlet FnB dengan auto-link ke BA Disiplin terbukti jalan.
 
 ---
 
@@ -71,10 +73,10 @@ Tiga lapis nilai yang dibangun bertahap:
 | Initiative | Deliverable | Effort | Owner |
 |---|---|---|---|
 | **Risk register** | Tabel `ms_risk` + `tr_risk_assessment`; UI register dengan link ke SOP/control; tampil di dashboard sebagai "risk vs incident overlay" | ~5 minggu | Dev A |
-| **Mobile / PWA** | PWA installable; form input BA dari HP; foto langsung dari kamera; offline draft | ~6 minggu | Dev B |
-| (Opsional) AI chatbot SOP | RAG Q&A on SOP corpus — "apa SOP untuk situasi X?" — conditional on compliance + cost discipline | ~4 minggu | Dev A/B |
+| **Mobile / PWA** | PWA installable; form input BA dari HP; foto langsung dari kamera; offline draft. **Bonus**: clock-in/out scheduling juga jalan via PWA (sinergi dengan Phase 3) | ~6 minggu | Dev B |
+| (Opsional) AI features shifted from Phase 3 | Suggest pertanyaan probing PICA + draft corrective/preventive action + AI chatbot SOP (RAG). Conditional on compliance. | ~8 minggu | Dev A/B |
 
-**Exit criteria phase 4**: Risk register live; mobile PWA dipakai untuk minimal 1 modul input lapangan; iterasi feedback dari user terkumpul.
+**Exit criteria phase 4**: Risk register live; mobile PWA dipakai untuk minimal 1 modul input lapangan + clock-in scheduling; iterasi feedback dari user terkumpul.
 
 ---
 
@@ -107,6 +109,8 @@ Tiga lapis nilai yang dibangun bertahap:
 | **BA pivot migration — data lama corrupt** | Backup penuh sebelum migrasi; staging environment test dulu; rollback plan dengan downtime ≤ 1 jam |
 | **Capacity tergerus support/maintenance > 25%** | Tracking ticket support per minggu; kalau > 30% selama 4 minggu berturut, re-plan phase berikutnya |
 | **SOP Tier 2 lifecycle terlalu kompleks untuk user** | Phase 1 design sprint harus include validasi mockup dengan 2–3 real user sebelum coding |
+| **Phase 3 over-loaded (21 person-week vs 24 productive)** | AI features di-shift ke Phase 4. Kalau scheduling slip, drop scope T3 dulu (tetap deliver T1 roster) |
+| **Scheduling clock-in adoption rendah di staff lapangan** | Validasi mockup dengan 2 outlet pilot di awal Phase 3; UI clock-in harus dead-simple (1 tap, tanpa login ulang) |
 | **Dependency turnover dev** | Dokumentasi tiap fitur di `docs/workflows/`; pair review semua PR besar |
 
 ---
@@ -130,15 +134,16 @@ Tiga lapis nilai yang dibangun bertahap:
  J   J   A   S   O   N   D   J   F   M   A   M
  ├───┴───┼───┴───┴───┼───┴───┴───┴───┼───┴───┴───┤
  │ Ph 1  │  Phase 2  │   Phase 3     │  Phase 4  │
- │ Found │ SOP + BA  │ Integr + Dash │ Risk+Mob  │
- │       │   pivot   │               │           │
+ │ Found │ SOP + BA  │ Integr+Dash+  │ Risk+Mob  │
+ │       │   pivot   │   Scheduling  │           │
  │       │           │               │           │
  │ PICA  │ SOP T2    │ SOP↔BA/PICA   │ Risk reg  │
- │ v2 f3 │ BA pivot  │ Dashboard exe │ Mobile    │
- │ SOP   │ [AI PoC]  │ [AI sugst]    │ [AI chat] │
- │ design│           │               │           │
- │ AI    │           │               │           │
+ │ v2 f3 │ BA pivot  │ Dashboard exe │ Mobile PWA│
+ │ SOP   │ [AI PoC]  │ Sched T1+T3   │ (+sched   │
+ │ design│           │ → BA Disiplin │  clock-in)│
+ │ AI    │           │               │ [AI feat] │
  │ check │           │               │           │
 ```
 
 `[...]` = conditional pada compliance clearance.
+`Sched T1+T3 → BA Disiplin` = scheduling roster + clock-in auto-trigger BA kategori `DISIPLIN_OPERASIONAL` saat telat/absen.

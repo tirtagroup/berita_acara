@@ -129,3 +129,70 @@ Switch via route `/lang/{locale}`.
 - Channel default: `stack` (gabungan).
 - File: `storage/logs/laravel.log` (rotated daily oleh `LOG_LEVEL=debug`).
 - Hindari `dd()` di production — pakai `Log::info(...)` atau `Log::error(...)`.
+
+---
+
+## 10. Domain Prefix Naming (`fnb`, dst.)
+
+**Aturan**: Setiap artifact yang scope-nya **spesifik ke satu domain bisnis** (mis. operasi FnB resto, SOP, Risk Register) WAJIB pakai prefix domain di posisi yang sesuai dengan tipe artifact.
+
+### Kapan WAJIB pakai prefix domain ✅
+
+Artifact yang hanya relevan untuk satu domain bisnis:
+
+- **`fnb`** — Operasi FnB resto: scheduling resto, resep, inventory dapur, FOH/BOH staffing, dll.
+- **`sop`** — SOP module (future, Phase 2 — lihat [ADR-003](decisions/003-sop-module-tier2.md))
+- **`risk`** — Risk Register (future, Phase 4)
+
+### Kapan TIDAK boleh pakai prefix domain ❌
+
+Artifact universal / cross-domain:
+
+- **Kategori BA universal** — sudah ada precedent revert dari `fnb_*` ke `ms_ba_*`. Lihat [database.md §Planned Change](database.md#-planned-change-multi-category-berita-acara) + [ADR-006](decisions/006-konteks-renamed-from-bu.md).
+- **Master global**: `ms_konteks`, `ms_company`, `MsBranch`, `Ms_User_Emp`, dll.
+- **Modul cross-domain**: BA, PICA, SP, Assessment, Rekrutmen, Help center, Permission system.
+- **Tabel sistem Laravel**: `users`, `sessions`, `migrations`, `personal_access_tokens`.
+
+### Aturan per tipe artifact
+
+| Tipe | Pattern | Contoh (domain `fnb`) |
+|---|---|---|
+| **DB table** | `{ms\|tr}_<domain>_<entity>[_h\|_d\|_log]` (domain di TENGAH, ms/tr tetap di depan untuk konsistensi codebase) | `ms_fnb_outlet`, `tr_fnb_jadwal_h`, `tr_fnb_jadwal_d`, `tr_fnb_jadwal_h_log` |
+| **Model class** | `App\Models\<Domain>\<Entity>` (sub-namespace, **bukan flat**) | `App\Models\Fnb\Outlet`, `App\Models\Fnb\JadwalHeader` |
+| **Controller** | `App\Http\Controllers\<Domain>\<Name>Controller` | `App\Http\Controllers\Fnb\JadwalController` |
+| **Route URI** | `/<domain>/<sub-module>/<resource>` | `/fnb/scheduling/jadwal`, `/fnb/master/outlet` |
+| **Route name** | `<domain>.<sub-module>.<resource>.<action>` | `fnb.scheduling.jadwal.index` |
+| **View / Blade** | `resources/views/<domain>/<sub-module>/...` | `fnb/scheduling/jadwal/edit.blade.php` |
+| **Permission code** | `<domain>.<sub-module>.<resource>.<action>` | `fnb.scheduling.jadwal.approve` |
+| **JS asset** | `resources/js/<domain>/<sub-module>/*` | `resources/js/fnb/scheduling/calendar.js` |
+| **Migration file** | `YYYY_MM_DD_HHMMSS_create_<table>_table.php` (table name sudah punya domain prefix) | `2026_07_01_100000_create_ms_fnb_outlet_table.php` |
+| **CSS class** | `.<domain>-<sub-module>-<element>` | `.fnb-scheduling-cell`, `.fnb-jadwal-status-published` |
+| **Docs folder** | `docs/<domain>-<sub-module>/` | `docs/fnb-scheduling/` |
+
+### Penjelasan posisi prefix di DB table
+
+Tabel pakai **`{ms|tr}_<domain>_<entity>`** (BUKAN `<domain>_{ms|tr}_<entity>`) karena:
+
+- Konsisten dengan precedent codebase: `ms_ba_kategori`, `tr_ba_kategori_d`, `tr_emp_assesment`. Pattern existing = `{ms|tr}_<domain/area>_<entity>`.
+- Sort alfabetis di DB tool mengumpulkan semua master (`ms_*`) dan transactional (`tr_*`) — bagus untuk DBA & schema review.
+- Tooling existing (`php artisan docs:check-schema`, backup scripts) yang assume `ms_*`/`tr_*` di awal tetap berfungsi.
+
+> Code layer (model, controller, route, permission, view) tidak punya klasifikasi master/transactional, jadi domain prefix langsung di depan.
+
+### Edge cases
+
+| Situasi | Aturan |
+|---|---|
+| **Artifact existing belum pakai prefix** (mis. tabel BA, PICA) | **Tidak retroaktif**. Rule berlaku untuk modul baru saja, jangan rename existing. |
+| **Sub-module dalam domain** (mis. `scheduling` dalam `fnb`) | Pakai sebagai segmen path/permission/folder, **bukan** di table prefix. Table tetap `ms_fnb_<entity>` (singkat), bukan `ms_fnb_scheduling_<entity>` (kepanjangan). Sub-module name baru wajib di route/permission/view path. |
+| **Feature pindah dari domain-specific → universal** | Rename via migration eksplisit + ADR. Precedent: `ms_business_unit` → `ms_konteks` ([ADR-006](decisions/006-konteks-renamed-from-bu.md)). |
+| **Feature lintas-domain** (mis. fitur dipakai FnB + SOP) | Universal — tidak pakai prefix domain. |
+| **ADR file** | Tetap di `docs/decisions/NNN-*.md` (project-wide series). Filename slug boleh include domain, mis. `007-fnb-scheduling-staff-source.md`. |
+
+### Penerapan saat ini
+
+| Modul | Folder docs | Table prefix | Code namespace |
+|---|---|---|---|
+| FnB Scheduling Resto | [docs/fnb-scheduling/](fnb-scheduling/) | `ms_fnb_*` / `tr_fnb_*` | `App\Models\Fnb\*`, `/fnb/scheduling/*` |
+
+Modul-modul existing (BA, PICA, SP, Assessment, Rekrutmen) **tidak terkena rule ini** — mereka mengikuti konvensi historical.
