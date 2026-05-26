@@ -97,7 +97,7 @@
         <div id="step-konteks" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Pilih Konteks</h5>
-            <small>Konteks menentukan kategori mana yang wajib/disarankan/opsional di step 3.</small>
+            <small>Konteks menentukan kategori mana yang tersedia di step 3.</small>
           </div>
           <div class="row g-3">
             @foreach ($konteksList as $bu)
@@ -193,7 +193,7 @@
         <div id="step-kategori" class="content">
           <div class="content-header mb-3">
             <h5 class="mb-0">Kategori Umum (multi-select)</h5>
-            <small>Pilih kategori yang relevan. Kategori "wajib" akan auto-check.</small>
+            <small>Pilih kategori yang relevan dengan kasus. Semua opsional — manager pilih sesuai kebutuhan.</small>
           </div>
 
           <div id="kategori-umum-container">
@@ -346,10 +346,8 @@
   .konteks-card { transition: all .15s; border: 2px solid transparent; }
   .konteks-card:hover { background: #f5f5f5; }
   .konteks-card.selected { border-color: #696cff; background: #eef0ff; }
-  .kategori-block { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
-  .kategori-block.wajib { border-left: 4px solid #dc3545; background: #fff5f5; }
-  .kategori-block.disarankan { border-left: 4px solid #ffc107; background: #fffbea; }
-  .kategori-block.opsional { border-left: 4px solid #adb5bd; }
+  .kategori-block { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #adb5bd; }
+  .kategori-block.selected { border-left-color: #696cff; background: #f5f6ff; }
   .step.step-skipped { opacity: 0.4; }
   .step.step-skipped .bs-stepper-label::after {
     content: " (skip)";
@@ -489,10 +487,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ===== Render 1 kategori block ke container =====
+  // Post-ADR-008: semua kategori opsional. Tidak ada auto-check / locked / badge level.
   function renderKategoriBlock(container, k, idx) {
-    const isWajib = k.level === 'wajib';
     const block = document.createElement('div');
-    block.className = `kategori-block ${k.level}`;
+    block.className = 'kategori-block';
     block.dataset.kategoriId = k.id;
     block.dataset.kategoriKode = k.kode;
     block.dataset.kategoriNama = k.nama;
@@ -500,39 +498,37 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="d-flex justify-content-between align-items-center">
         <label class="form-check-label mb-0">
           <input type="checkbox" class="form-check-input kategori-check"
-                 data-id="${k.id}" data-nama="${k.nama}"
-                 ${isWajib ? 'checked disabled' : ''}>
+                 data-id="${k.id}" data-nama="${k.nama}">
           <strong>${k.nama}</strong> <code class="small">${k.kode}</code>
-          <span class="badge bg-${k.level === 'wajib' ? 'danger' : (k.level === 'disarankan' ? 'warning text-dark' : 'secondary')} ms-2">${k.level}</span>
         </label>
       </div>
       <div class="opsi-container mt-2">
         <small class="text-muted">Loading opsi...</small>
       </div>
-      <input type="hidden" name="kategori[${idx}][id]" value="${isWajib ? k.id : ''}" class="kategori-hidden-id">
+      <input type="hidden" name="kategori[${idx}][id]" value="" class="kategori-hidden-id">
     `;
     container.appendChild(block);
 
-    // Selalu load opsi (tampil untuk semua kategori, bukan hanya wajib)
+    // Load opsi untuk semua kategori (tampil ready meskipun belum dicentang).
     loadOpsiForKategori(block, k.id, idx);
 
     const cb = block.querySelector('.kategori-check');
     const hiddenId = block.querySelector('.kategori-hidden-id');
-    if (!isWajib) {
-      cb.addEventListener('change', function() {
-        // Toggle hidden id; opsi tetap visible tapi disable bila kategori unchecked
-        // (lihat handler form submit — disabled inputs tidak ikut submit)
-        hiddenId.value = this.checked ? k.id : '';
-      });
 
-      // Bila user klik opsi tanpa kategori dichek, auto-check kategori
-      block.addEventListener('change', function(e) {
-        if (e.target.classList.contains('opsi-check') && e.target.checked && !cb.checked) {
-          cb.checked = true;
-          hiddenId.value = k.id;
-        }
-      });
-    }
+    cb.addEventListener('change', function() {
+      // Toggle hidden id; opsi tetap visible tapi tidak ikut submit kalau kategori unchecked
+      hiddenId.value = this.checked ? k.id : '';
+      block.classList.toggle('selected', this.checked);
+    });
+
+    // Bila user klik opsi tanpa kategori dichek, auto-check kategori (UX shortcut)
+    block.addEventListener('change', function(e) {
+      if (e.target.classList.contains('opsi-check') && e.target.checked && !cb.checked) {
+        cb.checked = true;
+        hiddenId.value = k.id;
+        block.classList.add('selected');
+      }
+    });
   }
 
   function loadOpsiForKategori(block, kategoriId, idx) {

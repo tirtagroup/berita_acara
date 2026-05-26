@@ -55,7 +55,7 @@ class BaKategori extends Model
             'ms_konteks_kategori_mapping',
             'kategori_id',
             'konteks_id'
-        )->withPivot('level')->withTimestamps();
+        )->withTimestamps();
     }
 
     public function baPivotEntries(): HasMany

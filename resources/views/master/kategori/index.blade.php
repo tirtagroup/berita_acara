@@ -54,7 +54,7 @@
               <td>{{ $k->parent?->nama ?? '—' }}</td>
               <td>
                 @forelse ($k->konteksList as $kn)
-                  <small title="{{ $kn->nama }} — {{ $kn->pivot->level }}">{{ $kn->kode }}</small>{{ !$loop->last ? ', ' : '' }}
+                  <small title="{{ $kn->nama }}">{{ $kn->kode }}</small>{{ !$loop->last ? ', ' : '' }}
                 @empty
                   <small class="text-muted">—</small>
                 @endforelse

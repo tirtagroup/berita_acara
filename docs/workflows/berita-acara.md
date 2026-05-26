@@ -159,13 +159,13 @@ Trigger pengiriman email perlu ditelusuri lebih lanjut — kemungkinan saat stat
 ### Multi-kategori
 - Pivot `tr_ba_kategori_d` (BA × kategori, opsional + opsi_id).
 - 14 kategori universal (`ms_ba_kategori`), 35 opsi unik (`ms_ba_kategori_opsi`) N:M via `ms_kategori_opsi_mapping`.
-- Konteks × kategori mapping di `ms_konteks_kategori_mapping` (level: wajib/disarankan/opsional).
+- Konteks × kategori mapping di `ms_konteks_kategori_mapping` (**boolean** — row present = available). Kolom `level` lama di-drop per [ADR-008](../decisions/008-drop-konteks-kategori-level.md).
 - Opsi langsung tag ke konteks: `ms_opsi_konteks_mapping`.
 
 ### Wizard Create 6-step
 1. Konteks (radio cards)
 2. Data umum (pelaku, tanggal, lokasi, company, deskripsi, **kronologi**, ms_kasus legacy)
-3. Kategori Umum (multi-select, level-aware)
+3. Kategori Umum (multi-select, semua opsional — pre-ADR-008 dulu "level-aware" dengan auto-check wajib)
 4. Kategori FnB (skip otomatis bila bukan FNB)
 5. Kategori LAKA (skip otomatis bila bukan LAKA)
 6. Salah Admin / Revisi (skip otomatis bila bukan REVISI) — termasuk `tr_ba_request_revisi` + `tr_ba_salah_isi_detail`

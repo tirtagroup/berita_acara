@@ -57,7 +57,6 @@ class MasterKategoriController extends Controller
             'kategori'      => $kategori,
             'parentOptions' => $parentOptions,
             'availableKonteks'   => $availableKonteks,
-            'allLevels'     => KonteksKategoriMapping::LEVELS,
         ]);
     }
 
@@ -134,21 +133,21 @@ class MasterKategoriController extends Controller
     }
 
     /**
-     * Attach BU ke kategori (atau ubah level bila sudah ada).
+     * Attach Konteks ke kategori (idempotent — row dibuat sekali, presence = available).
+     * Post-ADR-008: tidak ada lagi kolom `level`. Mapping = boolean murni.
      */
     public function kategoriBuUpsert(Request $request, $id)
     {
         $request->validate([
             'konteks_id' => ['required', 'integer', 'exists:ms_konteks,id'],
-            'level' => ['required', 'string', 'in:wajib,disarankan,opsional'],
         ]);
 
-        KonteksKategoriMapping::updateOrCreate(
-            ['konteks_id' => $request->konteks_id, 'kategori_id' => $id],
-            ['level' => $request->level]
-        );
+        KonteksKategoriMapping::firstOrCreate([
+            'konteks_id' => $request->konteks_id,
+            'kategori_id' => $id,
+        ]);
 
-        return back()->with('success', 'BU mapping diupdate.');
+        return back()->with('success', 'Konteks mapping di-attach.');
     }
 
     /**
@@ -284,27 +283,31 @@ class MasterKategoriController extends Controller
         return view('master.konteks_kategori_mapping.index', compact('konteksList', 'kategori', 'mappings'));
     }
 
+    /**
+     * Toggle mapping konteks × kategori on/off.
+     * Post-ADR-008: boolean — `aktif=true` create row, `aktif=false` delete row.
+     */
     public function mappingUpdate(Request $request)
     {
         $request->validate([
-            'konteks_id'        => ['required', 'integer', 'exists:ms_konteks,id'],
+            'konteks_id'   => ['required', 'integer', 'exists:ms_konteks,id'],
             'kategori_id'  => ['required', 'integer', 'exists:ms_ba_kategori,id'],
-            'level'        => ['required', 'string', 'in:wajib,disarankan,opsional,none'],
+            'aktif'        => ['required', 'boolean'],
         ]);
 
-        if ($request->level === 'none') {
+        if (!$request->boolean('aktif')) {
             KonteksKategoriMapping::where('konteks_id', $request->konteks_id)
                 ->where('kategori_id', $request->kategori_id)
                 ->delete();
             return response()->json(['ok' => true, 'action' => 'deleted']);
         }
 
-        KonteksKategoriMapping::updateOrCreate(
-            ['konteks_id' => $request->konteks_id, 'kategori_id' => $request->kategori_id],
-            ['level' => $request->level]
-        );
+        KonteksKategoriMapping::firstOrCreate([
+            'konteks_id' => $request->konteks_id,
+            'kategori_id' => $request->kategori_id,
+        ]);
 
-        return response()->json(['ok' => true, 'action' => 'updated']);
+        return response()->json(['ok' => true, 'action' => 'attached']);
     }
 
     // ============================================================

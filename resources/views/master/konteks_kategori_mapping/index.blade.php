@@ -11,11 +11,8 @@
   </h4>
 
   <div class="alert alert-info">
-    <strong>Keterangan level:</strong>
-    <span class="badge bg-danger">Wajib</span> auto-check di form BA dan tidak bisa di-uncheck.
-    <span class="badge bg-warning text-dark">Disarankan</span> ditonjolkan di form, tapi user boleh skip.
-    <span class="badge bg-secondary">Opsional</span> tersedia tapi tidak ditonjolkan.
-    <span class="badge bg-light text-dark">— (None)</span> tidak relevan, hide dari form.
+    <strong>Cara pakai:</strong> Centang kotak untuk membuat kategori tersedia di konteks itu (form BA akan tampilkan kategori sebagai opsi). Uncheck untuk menghilangkan dari konteks itu.
+    <br><small class="text-muted">Semua kategori yang muncul di form BA bersifat <em>opsional</em> — manager pilih manual sesuai kasus. Kalau perlu enforce "wajib pilih kategori X", tambah validasi bisnis di app layer.</small>
   </div>
 
   <div class="card">
@@ -25,7 +22,7 @@
           <tr>
             <th>Kategori</th>
             @foreach ($konteksList as $k)
-              <th class="text-center" style="min-width:140px">
+              <th class="text-center" style="min-width:120px">
                 {{ $k->nama }}<br>
                 <small class="text-muted">{{ $k->kode }}</small>
               </th>
@@ -41,18 +38,16 @@
               </td>
               @foreach ($konteksList as $k)
                 @php
-                  $m = $mappings->get("{$k->id}_{$kat->id}");
-                  $level = $m?->level ?? 'none';
+                  $aktif = $mappings->has("{$k->id}_{$kat->id}");
                 @endphp
                 <td class="text-center">
-                  <select class="form-select form-select-sm mapping-level"
-                          data-konteks="{{ $k->id }}"
-                          data-kat="{{ $kat->id }}">
-                    <option value="none"       {{ $level === 'none'       ? 'selected' : '' }}>—</option>
-                    <option value="wajib"      {{ $level === 'wajib'      ? 'selected' : '' }}>Wajib</option>
-                    <option value="disarankan" {{ $level === 'disarankan' ? 'selected' : '' }}>Disarankan</option>
-                    <option value="opsional"   {{ $level === 'opsional'   ? 'selected' : '' }}>Opsional</option>
-                  </select>
+                  <div class="form-check d-inline-block">
+                    <input type="checkbox"
+                           class="form-check-input mapping-toggle"
+                           data-konteks="{{ $k->id }}"
+                           data-kat="{{ $kat->id }}"
+                           {{ $aktif ? 'checked' : '' }}>
+                  </div>
                 </td>
               @endforeach
             </tr>
@@ -61,7 +56,7 @@
       </table>
     </div>
     <div class="card-footer">
-      <span id="save-status" class="text-muted">Perubahan disimpan otomatis saat dropdown diubah.</span>
+      <span id="save-status" class="text-muted">Perubahan disimpan otomatis saat checkbox di-toggle.</span>
       <a href="{{ route('master.kategori.index') }}" class="btn btn-link float-end">← Kembali ke daftar kategori</a>
     </div>
   </div>
@@ -73,11 +68,11 @@
     const url  = '{{ route('master.mapping.update') }}';
     const status = document.getElementById('save-status');
 
-    document.querySelectorAll('.mapping-level').forEach(sel => {
-      sel.addEventListener('change', async (e) => {
+    document.querySelectorAll('.mapping-toggle').forEach(cb => {
+      cb.addEventListener('change', async (e) => {
         const konteksId = e.target.dataset.konteks;
         const katId     = e.target.dataset.kat;
-        const level     = e.target.value;
+        const aktif     = e.target.checked ? '1' : '0';
         status.textContent = 'Menyimpan...';
         status.className = 'text-info';
 
@@ -93,21 +88,23 @@
               _token: csrf,
               konteks_id: konteksId,
               kategori_id: katId,
-              level: level,
+              aktif: aktif,
             }),
           });
           const data = await res.json();
           if (data.ok) {
             status.textContent = 'Tersimpan (' + data.action + ' Konteks=' + konteksId + ' Kat=' + katId + ').';
             status.className = 'text-success';
-            e.target.classList.add('border-success');
-            setTimeout(() => e.target.classList.remove('border-success'), 1500);
+            e.target.parentElement.classList.add('border-success');
+            setTimeout(() => e.target.parentElement.classList.remove('border-success'), 1500);
           } else {
             throw new Error('Gagal simpan');
           }
         } catch (err) {
           status.textContent = 'ERROR: ' + err.message;
           status.className = 'text-danger';
+          // Rollback checkbox state on error
+          e.target.checked = !e.target.checked;
         }
       });
     });

@@ -96,7 +96,7 @@
                         @if ($k->konteksList->count() > 0)
                           <small class="ms-1 text-muted">
                             @foreach ($k->konteksList as $kn)
-                              <span title="{{ $kn->nama }} — {{ $kn->pivot->level }}">{{ $kn->kode }}</span>{{ !$loop->last ? ', ' : '' }}
+                              <span title="{{ $kn->nama }}">{{ $kn->kode }}</span>{{ !$loop->last ? ', ' : '' }}
                             @endforeach
                           </small>
                         @endif

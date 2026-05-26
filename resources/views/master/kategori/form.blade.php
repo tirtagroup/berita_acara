@@ -121,18 +121,9 @@
                         </button>
                       </form>
                     </div>
-                    <form action="{{ route('master.kategori.konteks.upsert', $kategori->id) }}" method="POST">
-                      @csrf
-                      <input type="hidden" name="konteks_id" value="{{ $k->id }}">
-                      <div class="input-group input-group-sm">
-                        <select name="level" class="form-select form-select-sm">
-                          @foreach ($allLevels as $lv)
-                            <option value="{{ $lv }}" {{ $k->pivot->level === $lv ? 'selected' : '' }}>{{ ucfirst($lv) }}</option>
-                          @endforeach
-                        </select>
-                        <button type="submit" class="btn btn-outline-primary"><i class="bx bx-save"></i></button>
-                      </div>
-                    </form>
+                    {{-- Post-ADR-008: mapping = boolean. Attached berarti kategori muncul di konteks ini.
+                         Untuk detach, gunakan tombol X di atas. --}}
+                    <small class="text-muted">Attached</small>
                   </div>
                 </div>
               </div>
@@ -154,15 +145,7 @@
                 @endforeach
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Level</label>
-              <select name="level" class="form-select" required>
-                @foreach ($allLevels as $lv)
-                  <option value="{{ $lv }}" {{ $lv === 'opsional' ? 'selected' : '' }}>{{ ucfirst($lv) }}</option>
-                @endforeach
-              </select>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-7">
               <button type="submit" class="btn btn-primary w-100">
                 <i class="bx bx-link"></i> Attach
               </button>

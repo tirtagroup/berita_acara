@@ -16,17 +16,6 @@ class KonteksKategoriMapping extends Model
     protected $fillable = [
         'konteks_id',
         'kategori_id',
-        'level',
-    ];
-
-    public const LEVEL_WAJIB      = 'wajib';
-    public const LEVEL_DISARANKAN = 'disarankan';
-    public const LEVEL_OPSIONAL   = 'opsional';
-
-    public const LEVELS = [
-        self::LEVEL_WAJIB,
-        self::LEVEL_DISARANKAN,
-        self::LEVEL_OPSIONAL,
     ];
 
     public function konteks(): BelongsTo

@@ -37,6 +37,6 @@ class Konteks extends Model
             'ms_konteks_kategori_mapping',
             'konteks_id',
             'kategori_id'
-        )->withPivot('level')->withTimestamps();
+        )->withTimestamps();
     }
 }

@@ -201,7 +201,8 @@ Setelah diskusi domain, arsitektur final:
 ms_konteks                (Konteks: LAKA, FNB, OP_HR, REVISI, ...)
         │
         │ N:N
-ms_konteks_kategori_mapping (Konteks × kategori, dengan level: wajib/disarankan/opsional)
+ms_konteks_kategori_mapping (Konteks × kategori, BOOLEAN — row present = available)
+                            (pre-ADR-008: punya kolom level W/D/O; akan di-drop)
         │
         │ N:N
 ms_ba_kategori            (master semua kategori, UNIVERSAL — tidak partition per Konteks)
@@ -255,7 +256,8 @@ Lihat [`docs/categories.md`](categories.md) untuk daftar lengkap Konteks, katego
 ```
 ms_konteks                     id PK, kode UQ, nama, deskripsi, active
 ms_ba_kategori                 id PK, kode UQ, nama, parent_id (self FK), active
-ms_konteks_kategori_mapping    konteks_id FK, kategori_id FK, level ENUM (UQ konteks+kat)
+ms_konteks_kategori_mapping    konteks_id FK, kategori_id FK (UQ konteks+kat)
+                               ⚠️ kolom `level` ENUM akan di-drop per ADR-008 (migration 2026_05_25_120000)
 ms_ba_kategori_opsi            id PK, deskripsi, active
 ms_kategori_opsi_mapping       kategori_id FK, opsi_id FK, kode, sort_order, active (N:M)
 ms_opsi_konteks_mapping        opsi_id FK, konteks_id FK (tag konteks langsung di opsi)
@@ -272,7 +274,7 @@ ms_cek_flag_mapping            id PK, legacy_flag UQ, kategori_kode FK, opsi_kod
 |---|---|
 | `ms_konteks` | 4 (LAKA, FNB, OP_HR, REVISI) |
 | `ms_ba_kategori` | 14 kategori universal |
-| `ms_konteks_kategori_mapping` | 35 mapping (level wajib/disarankan/opsional) |
+| `ms_konteks_kategori_mapping` | 35 mapping (boolean — kolom level di-drop per [ADR-008](decisions/008-drop-konteks-kategori-level.md)) |
 | `ms_ba_kategori_opsi` | 35 opsi unik (universal, multi-parent via pivot) |
 | `ms_cek_flag_mapping` | 11 mapping default (CekPelanggaran→PELANGGARAN_SOP, dll.) |
 | `tr_ba_kategori_d` | 0 (diisi runtime saat user submit BA + saat artisan migrate Cek*) |

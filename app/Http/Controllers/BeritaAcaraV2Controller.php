@@ -607,7 +607,16 @@ class BeritaAcaraV2Controller extends Controller
     }
 
     /**
-     * AJAX: list kategori untuk Konteks tertentu, urutkan wajib → disarankan → opsional.
+     * AJAX: list kategori untuk Konteks tertentu.
+     *
+     * Post-ADR-008: kolom `level` (wajib/disarankan/opsional) sudah di-drop dari
+     * `ms_konteks_kategori_mapping`. Semua kategori yang muncul = opsional.
+     *
+     * `domain` per kategori sekarang dihitung dari MAPPING PRESENCE:
+     *   - Kategori yang mapped ke HANYA 1 dari (FNB/LAKA/REVISI) → bucket itu
+     *   - Selain itu (multi-konteks atau cuma OP_HR) → bucket UMUM
+     * Konsekuensi: kategori yang dulu "wajib di FNB" multi-konteks (mis. Disiplin
+     * Operasional) sekarang masuk UMUM bukan FNB.
      */
     public function kategoriByBu($konteksKode)
     {
@@ -621,30 +630,22 @@ class BeritaAcaraV2Controller extends Controller
                           ->where('m.konteks_id', '=', $konteks->id);
                     })
                     ->where('k.active', true)
-                    ->select('k.id', 'k.kode', 'k.nama', 'm.level')
-                    ->orderByRaw("FIELD(m.level, 'wajib', 'disarankan', 'opsional')")
+                    ->select('k.id', 'k.kode', 'k.nama')
                     ->orderBy('k.nama')
                     ->get();
 
-        // Compute domain per kategori berdasarkan konteks mana yang punya level WAJIB.
-        // - Wajib hanya di FNB        → FNB
-        // - Wajib hanya di LAKA       → LAKA
-        // - Lainnya → UMUM
-        $wajibByKategori = DB::table('ms_konteks_kategori_mapping as m')
+        // Compute domain via mapping presence ke konteks domain-specific (FNB/LAKA/REVISI).
+        $domainKonteksList = ['FNB', 'LAKA', 'REVISI'];
+        $mappedKonteks = DB::table('ms_konteks_kategori_mapping as m')
             ->join('ms_konteks as k', 'm.konteks_id', '=', 'k.id')
-            ->where('m.level', 'wajib')
+            ->whereIn('k.kode', $domainKonteksList)
             ->select('m.kategori_id', 'k.kode')
             ->get()
             ->groupBy('kategori_id');
 
         foreach ($rows as $r) {
-            $wajibKodes = $wajibByKategori->get($r->id, collect())->pluck('kode')->all();
-            if (count($wajibKodes) === 1) {
-                $r->domain = in_array($wajibKodes[0], ['FNB', 'LAKA', 'REVISI']) ? $wajibKodes[0] : 'UMUM';
-            } else {
-                $r->domain = 'UMUM';
-            }
-            $r->level = $r->level ?? 'opsional';
+            $mappedKodes = $mappedKonteks->get($r->id, collect())->pluck('kode')->unique()->all();
+            $r->domain = (count($mappedKodes) === 1) ? $mappedKodes[0] : 'UMUM';
         }
 
         return response()->json([
