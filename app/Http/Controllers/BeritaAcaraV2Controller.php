@@ -146,13 +146,13 @@ class BeritaAcaraV2Controller extends Controller
             ->limit(10)
             ->get();
 
-        // Recent BA — JOIN dengan subquery (anti-dup karena master_employees punya emp_id
-        // duplicate ~1625 row, dan PICA bisa multi-row per BA dengan MAX date sama).
+        // Recent BA — JOIN dengan subquery (Ms_User_Emp punya composite PK
+        // (Ms_Emp_Code, Ms_Company_Code) sehingga ada duplicate per code lintas company).
 
-        // Subquery 1: 1 emp_name per emp_id
-        $empSub = DB::table('master_employees')
-            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
-            ->groupBy('emp_id');
+        // Subquery 1: 1 Emp_Name per Ms_Emp_Code
+        $empSub = DB::table('Ms_User_Emp')
+            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
+            ->groupBy('Ms_Emp_Code');
 
         // Subquery 2: PICA terbaru per BA + ambil 1 code via MAX(id)
         $picaSub = DB::table('Tr_PICA_Emp_h')
@@ -168,6 +168,7 @@ class BeritaAcaraV2Controller extends Controller
                 'ba.Tr_BA_Main_Code as kode',
                 'ba.Ms_BA_type_Code as konteks',
                 'ba.Date_BA',
+                'ba.created_at as ba_created_at',
                 'ba.Ms_Emp_Code as emp_code',
                 'me.emp_name as emp_name',
                 'ba.Ms_Pelapor_Code as pelapor',
@@ -175,6 +176,7 @@ class BeritaAcaraV2Controller extends Controller
                 'pica.pica_kode',
                 'pica.pica_date'
             )
+            ->orderByDesc('ba.created_at')
             ->orderByDesc('ba.rec_datecreated')
             ->limit($perPage)
             ->get();
@@ -199,8 +201,12 @@ class BeritaAcaraV2Controller extends Controller
         $kode = $request->query('kode');
         if (!$kode) abort(404, 'Kode BA tidak diberikan');
 
+        $empSubShow = DB::table('Ms_User_Emp')
+            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
+            ->groupBy('Ms_Emp_Code');
+
         $ba = DB::table('Tr_Ba_Main_New as ba')
-            ->leftJoin('master_employees as me', 'ba.Ms_Emp_Code', '=', 'me.emp_id')
+            ->leftJoinSub($empSubShow, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code')
             ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
             ->leftJoin('ms_lokasi as l', 'ba.rec_areacode', '=', 'l.lokasi_code')
             ->where('ba.Tr_BA_Main_Code', $kode)
@@ -247,10 +253,10 @@ class BeritaAcaraV2Controller extends Controller
         }
 
         // PICA v2 yang link ke BA ini (Fase 6 — BA↔PICA integration)
-        // master_employees duplicate-safe via subquery
-        $empSubPica = DB::table('master_employees')
-            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
-            ->groupBy('emp_id');
+        // Subquery Ms_User_Emp untuk emp name (composite PK → dedupe via MAX)
+        $empSubPica = DB::table('Ms_User_Emp')
+            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
+            ->groupBy('Ms_Emp_Code');
         $picaListRaw = DB::table('Tr_PICA_Emp_h as h')
             ->leftJoinSub($empSubPica, 'me', 'me.emp_id', '=', 'h.Emp_Code')
             ->where('h.NoBA', $kode)
@@ -437,16 +443,65 @@ class BeritaAcaraV2Controller extends Controller
 
     /**
      * Print BA form dengan signature blocks untuk approval.
+     * Render via mPDF → langsung download PDF (tanpa wrapper layout web).
      */
     public function print(string $kode)
     {
-        $ba = DB::table('Tr_Ba_Main_New')
-            ->where('Tr_BA_Main_Code', $kode)
+        $empSub = DB::table('Ms_User_Emp')
+            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
+            ->groupBy('Ms_Emp_Code');
+
+        $ba = DB::table('Tr_Ba_Main_New as ba')
+            ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code')
+            ->leftJoinSub($empSub, 'mp', 'mp.emp_id', '=', 'ba.Ms_Pelapor_Code')
+            ->leftJoin('ms_division as dv_pelaku',  'ba.Ms_Emp_Div',     '=', 'dv_pelaku.div_id')
+            ->leftJoin('ms_division as dv_pelapor', 'ba.Ms_Pelapor_Div', '=', 'dv_pelapor.div_id')
+            ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
+            ->leftJoin('ms_lokasi as l', 'ba.rec_areacode', '=', 'l.lokasi_code')
+            ->where('ba.Tr_BA_Main_Code', $kode)
+            ->select(
+                'ba.*',
+                'me.emp_name',
+                'mp.emp_name as pelapor_name',
+                DB::raw('COALESCE(dv_pelaku.div_desc,  ba.Ms_Emp_Div)     as pelaku_divisi'),
+                DB::raw('COALESCE(dv_pelapor.div_desc, ba.Ms_Pelapor_Div) as pelapor_divisi'),
+                'c.description as company_name',
+                'l.lokasi_desc as lokasi_name'
+            )
             ->first();
 
         abort_unless($ba, 404, "BA dengan kode {$kode} tidak ditemukan");
 
-        return view('berita_acara_v2.print', compact('ba'));
+        $kronologi = DB::table('tr_ba_kronologi')
+            ->where('tr_ba_main_code', $ba->Tr_BA_Main_Code)
+            ->orderBy('id')->get();
+
+        $categories = DB::table('tr_ba_kategori_d as d')
+            ->join('ms_ba_kategori as k', 'd.kategori_id', '=', 'k.id')
+            ->leftJoin('ms_ba_kategori_opsi as o', 'd.opsi_id', '=', 'o.id')
+            ->where('d.tr_ba_main_code', $ba->Tr_BA_Main_Code)
+            ->select('k.nama', 'o.deskripsi')
+            ->get();
+
+        $html = view('berita_acara_v2.print', compact('ba', 'kronologi', 'categories'))->render();
+
+        $mpdf = new \Mpdf\Mpdf([
+            'mode'          => 'utf-8',
+            'format'        => 'A4',
+            'margin_left'   => 10,
+            'margin_right'  => 10,
+            'margin_top'    => 10,
+            'margin_bottom' => 10,
+            'margin_header' => 0,
+            'margin_footer' => 0,
+        ]);
+        $mpdf->WriteHTML($html);
+
+        $filename = 'BA_' . $ba->Tr_BA_Main_Code . '.pdf';
+        return response($mpdf->Output($filename, \Mpdf\Output\Destination::STRING_RETURN), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
     }
 
     /**
@@ -457,10 +512,10 @@ class BeritaAcaraV2Controller extends Controller
     {
         $perPage = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 20;
 
-        // master_employees punya emp_id duplicate (~1625) — pakai subquery aggregate
-        $empSub = DB::table('master_employees')
-            ->select('emp_id', DB::raw('MAX(emp_name) as emp_name'))
-            ->groupBy('emp_id');
+        // Ms_User_Emp composite PK (Ms_Emp_Code, Ms_Company_Code) — dedupe via MAX
+        $empSub = DB::table('Ms_User_Emp')
+            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
+            ->groupBy('Ms_Emp_Code');
 
         $query = DB::table('Tr_Ba_Main_New as ba')
             ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code');
@@ -586,8 +641,8 @@ class BeritaAcaraV2Controller extends Controller
     }
 
     /**
-     * AJAX: search karyawan dari master_employees.
-     * Return: [{id: emp_id, text: "EMP_ID — Nama", divisi: emp_iddivision}]
+     * AJAX: search karyawan dari Ms_User_Emp (database tirt3038_ERP).
+     * Return: [{id: Ms_Emp_Code, text: "CODE — Nama", divisi: emp_division}]
      */
     public function searchEmployees(Request $request)
     {
@@ -596,18 +651,22 @@ class BeritaAcaraV2Controller extends Controller
             return response()->json(['results' => []]);
         }
 
-        $rows = DB::table('master_employees')
+        $rows = DB::table('Ms_User_Emp')
                     ->where(function ($w) use ($q) {
-                        $w->where('emp_id', 'like', "%{$q}%")
-                          ->orWhere('emp_name', 'like', "%{$q}%");
+                        $w->where('Ms_Emp_Code', 'like', "%{$q}%")
+                          ->orWhere('Emp_Name', 'like', "%{$q}%");
                     })
                     ->where(function ($w) {
-                        $w->whereNull('emp_inactive')
-                          ->orWhere('emp_inactive', '!=', 'Y')
-                          ->orWhere('emp_inactive', '');
+                        $w->where('Status_Active', 1)
+                          ->orWhereNull('Status_Active');
                     })
-                    ->select('emp_id', 'emp_name', 'emp_iddivision')
-                    ->orderBy('emp_name')
+                    ->select(
+                        DB::raw('MIN(Ms_Emp_Code) as emp_id'),
+                        DB::raw('MAX(Emp_Name) as emp_name'),
+                        DB::raw('MAX(emp_division) as emp_iddivision')
+                    )
+                    ->groupBy('Ms_Emp_Code')
+                    ->orderBy(DB::raw('MAX(Emp_Name)'))
                     ->limit(50)
                     ->get();
 
@@ -882,9 +941,9 @@ class BeritaAcaraV2Controller extends Controller
             // Gagal tidak membatalkan penyimpanan BA
             try {
                 // Nama karyawan (subject)
-                $empName = DB::table('master_employees')
-                    ->where('emp_id', $request->emp_code)
-                    ->value('emp_name') ?? $request->emp_code;
+                $empName = DB::table('Ms_User_Emp')
+                    ->where('Ms_Emp_Code', $request->emp_code)
+                    ->value('Emp_Name') ?? $request->emp_code;
 
                 // Deskripsi lokasi & cabang
                 $lokasiDesc = $request->lokasi_code

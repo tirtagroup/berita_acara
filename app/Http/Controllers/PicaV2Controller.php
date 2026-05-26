@@ -278,9 +278,10 @@ class PicaV2Controller extends Controller
         $pelakuUser = DB::table('users')
             ->whereRaw('LOWER(username) = ?', [mb_strtolower($pica->Emp_Code ?? '')])
             ->first(['id', 'username', 'name']);
-        $pelakuEmp = DB::table('master_employees')
-            ->where('emp_id', $pica->Emp_Code)
-            ->first(['emp_id', 'emp_name']);
+        $pelakuEmp = DB::table('Ms_User_Emp')
+            ->where('Ms_Emp_Code', $pica->Emp_Code)
+            ->select('Ms_Emp_Code as emp_id', 'Emp_Name as emp_name')
+            ->first();
 
         $isPic    = in_array('pic',    $myRoles, true);
         $isDewan  = in_array('dewan',  $myRoles, true);
@@ -1202,9 +1203,9 @@ TXT;
                 $w->where('h.Emp_Code', 'like', "%{$pelakuQ}%")
                   ->orWhereExists(function ($sub) use ($pelakuQ) {
                       $sub->select(DB::raw(1))
-                          ->from('master_employees as me')
-                          ->whereColumn('me.emp_id', 'h.Emp_Code')
-                          ->where('me.emp_name', 'like', "%{$pelakuQ}%");
+                          ->from('Ms_User_Emp as me')
+                          ->whereColumn('me.Ms_Emp_Code', 'h.Emp_Code')
+                          ->where('me.Emp_Name', 'like', "%{$pelakuQ}%");
                   });
             });
         }
@@ -1279,9 +1280,11 @@ TXT;
 
         $empMap = [];
         if (!empty($empIds)) {
-            $empMap = DB::table('master_employees')
-                ->whereIn('emp_id', $empIds)
-                ->pluck('emp_name', 'emp_id')->all();
+            $empMap = DB::table('Ms_User_Emp')
+                ->whereIn('Ms_Emp_Code', $empIds)
+                ->select('Ms_Emp_Code', DB::raw('MAX(Emp_Name) as Emp_Name'))
+                ->groupBy('Ms_Emp_Code')
+                ->pluck('Emp_Name', 'Ms_Emp_Code')->all();
         }
 
         $katMap = [];

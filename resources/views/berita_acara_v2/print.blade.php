@@ -1,195 +1,137 @@
-@extends('layouts/layoutMaster')
+{{--
+  Berita Acara V2 — Print template (standalone, mPDF-friendly).
+  Compact layout, single A4 page bila konten ringkas.
+--}}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>BA {{ $ba->Tr_BA_Main_Code ?? '' }}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #000; margin: 0; }
+  h1 { font-size: 14px; margin: 0 0 2px; text-align: center; }
+  h2 { font-size: 10px; margin: 0 0 8px; text-align: center; color: #555; font-weight: normal; }
+  .meta { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  .meta td { padding: 2px 4px; vertical-align: top; font-size: 10px; }
+  .meta td.lbl { width: 80px; color: #444; font-weight: bold; }
+  .sect { margin-top: 6px; }
+  .sect h3 { font-size: 10px; margin: 0 0 2px; padding: 2px 4px; background: #eee; border-left: 3px solid #555; }
+  .sect .box { border: 1px solid #bbb; padding: 4px 6px; min-height: 18px; font-size: 10px; }
+  .sigs { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
+  .sigs th, .sigs td { border: 1px solid #999; padding: 4px 6px; vertical-align: middle; }
+  .sigs th { background: #eee; text-align: left; }
+  .sigs td.pic { width: 50%; }
+  .small { font-size: 8.5px; color: #555; margin-top: 6px; }
+  hr { border: 0; border-top: 1px solid #999; margin: 4px 0; }
+</style>
+</head>
+<body>
 
-@section('title', 'Print & Sign Berita Acara - ' . ($ba->Tr_BA_Main_Code ?? 'N/A'))
+<h1>BERITA ACARA (BA)</h1>
 
-@section('content')
-<div class="container-xxl flex-grow-1 container-p-y" style="max-width: 900px;">
-  <!-- Header -->
-  <div class="row mb-4">
-    <div class="col-12 text-center mb-3">
-      <h3 class="mb-1">BERITA ACARA (BA)</h3>
-      <h5 class="text-muted">Incident & Event Report</h5>
-    </div>
-  </div>
+<table class="meta">
+  <tr>
+    <td class="lbl">BA Code</td>
+    <td>: {{ $ba->Tr_BA_Main_Code ?? '—' }}</td>
+    <td class="lbl">Creator</td>
+    <td>: {{ $ba->emp_name ?? ($ba->Ms_Emp_Code ?? '—') }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">Date</td>
+    <td>: {{ !empty($ba->Date_BA) ? \Carbon\Carbon::parse($ba->Date_BA)->format('d/m/Y') : '—' }}</td>
+    <td class="lbl">Company</td>
+    <td>: {{ $ba->company_name ?? ($ba->rec_comcode ?? '—') }}</td>
+  </tr>
+  <tr>
+    <td class="lbl">Type</td>
+    <td>: {{ $ba->Ms_BA_type_Code ?? '—' }}</td>
+    <td class="lbl">Location</td>
+    <td>: {{ $ba->lokasi_name ?? ($ba->rec_areacode ?? '—') }}</td>
+  </tr>
+</table>
 
-  <!-- Main Content Area (printable) -->
-  <div id="printable-area" class="card">
-    <div class="card-body">
-      <!-- Identitas BA -->
-      <div class="row mb-4">
-        <div class="col-md-6">
-          <dl class="row mb-2">
-            <dt class="col-sm-5"><strong>BA Code:</strong></dt>
-            <dd class="col-sm-7">{{ $ba->Tr_BA_Main_Code ?? '—' }}</dd>
-            
-            <dt class="col-sm-5"><strong>Date:</strong></dt>
-            <dd class="col-sm-7">{{ $ba->Date_BA ? \Carbon\Carbon::parse($ba->Date_BA)->format('d/m/Y') : '—' }}</dd>
-            
-            <dt class="col-sm-5"><strong>Type/Context:</strong></dt>
-            <dd class="col-sm-7">
-              <span class="badge bg-primary">{{ $ba->Ms_BA_type_Code ?? 'GENERAL' }}</span>
-            </dd>
-          </dl>
-        </div>
-        <div class="col-md-6">
-          <dl class="row mb-2">
-            <dt class="col-sm-5"><strong>Creator:</strong></dt>
-            <dd class="col-sm-7">{{ $ba->Ms_Emp_Code ?? '—' }}</dd>
-            
-            <dt class="col-sm-5"><strong>Company:</strong></dt>
-            <dd class="col-sm-7">{{ $ba->Ms_Company ?? '—' }}</dd>
-            
-            <dt class="col-sm-5"><strong>Location:</strong></dt>
-            <dd class="col-sm-7">{{ $ba->Ms_Location ?? '—' }}</dd>
-          </dl>
-        </div>
-      </div>
-
-      <hr class="my-4" />
-
-      <!-- Main Content -->
-      <div class="mb-4">
-        <h6 class="fw-bold mb-2">Incident Description</h6>
-        <div style="border: 1px solid #ddd; padding: 12px; background: #f9f9f9; min-height: 100px;">
-          {!! nl2br(e($ba->BA_Desc ?? '—')) !!}
-        </div>
-      </div>
-
-      <!-- Kronologi -->
-      @php
-        $kronologi = DB::table('tr_ba_kronologi')->where('tr_ba_main_code', $ba->Tr_BA_Main_Code)->orderBy('id')->get();
-      @endphp
-      @if($kronologi->count() > 0)
-      <div class="mb-4">
-        <h6 class="fw-bold mb-2">Kronologi Kejadian / Timeline</h6>
-        <div style="border: 1px solid #ddd; padding: 12px; background: #f9f9f9;">
-          @foreach($kronologi as $idx => $item)
-            <p class="mb-2"><strong>{{ $idx + 1 }}.</strong> {!! nl2br(e($item->kronlogi)) !!}</p>
-          @endforeach
-        </div>
-      </div>
-      @endif
-
-      <!-- Findings / Issues (Temuan) -->
-      @if(!empty($ba->ba_temuan))
-      <div class="mb-4">
-        <h6 class="fw-bold mb-2">Temuan / Issues Found</h6>
-        <div style="border: 1px solid #ddd; padding: 12px; background: #f9f9f9;">
-          {!! nl2br(e($ba->ba_temuan)) !!}
-        </div>
-      </div>
-      @endif
-
-      <!-- Recommendations (Rekomendasi) -->
-      @if(!empty($ba->ba_rekomendasi))
-      <div class="mb-4">
-        <h6 class="fw-bold mb-2">Rekomendasi / Action Items</h6>
-        <div style="border: 1px solid #ddd; padding: 12px; background: #f9f9f9;">
-          {!! nl2br(e($ba->ba_rekomendasi)) !!}
-        </div>
-      </div>
-      @endif
-
-      <!-- Kategori & Opsi -->
-      @php
-        $categories = DB::table('tr_ba_kategori_d as d')
-          ->join('ms_ba_kategori as k', 'd.kategori_id', '=', 'k.id')
-          ->leftJoin('ms_ba_kategori_opsi as o', 'd.opsi_id', '=', 'o.id')
-          ->where('d.tr_ba_main_code', $ba->Tr_BA_Main_Code)
-          ->select('k.nama', 'o.deskripsi')
-          ->get();
-      @endphp
-      @if($categories->count() > 0)
-      <div class="mb-4">
-        <h6 class="fw-bold mb-2">Kategori & Opsi</h6>
-        <div style="border: 1px solid #ddd; padding: 12px; background: #f9f9f9;">
-          @foreach($categories->groupBy('nama') as $kategori => $items)
-            <p class="mb-2"><strong>• {{ $kategori }}</strong></p>
-            @foreach($items as $item)
-              @if($item->deskripsi)
-                <p class="mb-1" style="margin-left: 20px;">→ {{ $item->deskripsi }}</p>
-              @endif
-            @endforeach
-          @endforeach
-        </div>
-      </div>
-      @endif
-
-      <hr class="my-4" />
-
-      <!-- Signature Section -->
-      <div class="row mt-5">
-        <h6 class="fw-bold mb-4 col-12">Approval & Signature</h6>
-
-        <!-- Supervisor (SPV) -->
-        <div class="col-md-6 mb-5">
-          <div style="border: 1px solid #999; padding: 15px; text-align: center; min-height: 120px;">
-            <div style="margin-bottom: 60px; font-weight: bold; color: #ccc;">Signature Area</div>
-            <p class="mb-0"><strong>Supervisor</strong></p>
-            <p class="text-muted small">Name & Date</p>
-          </div>
-        </div>
-
-        <!-- Head of Division (HOD) -->
-        <div class="col-md-6 mb-5">
-          <div style="border: 1px solid #999; padding: 15px; text-align: center; min-height: 120px;">
-            <div style="margin-bottom: 60px; font-weight: bold; color: #ccc;">Signature Area</div>
-            <p class="mb-0"><strong>Head of Division (HOD)</strong></p>
-            <p class="text-muted small">Name & Date</p>
-          </div>
-        </div>
-
-        <!-- Manager / Coordinator -->
-        <div class="col-md-6 mb-5">
-          <div style="border: 1px solid #999; padding: 15px; text-align: center; min-height: 120px;">
-            <div style="margin-bottom: 60px; font-weight: bold; color: #ccc;">Signature Area</div>
-            <p class="mb-0"><strong>Manager / Coordinator</strong></p>
-            <p class="text-muted small">Name & Date</p>
-          </div>
-        </div>
-
-        <!-- BOD / Top Management -->
-        <div class="col-md-6 mb-5">
-          <div style="border: 1px solid #999; padding: 15px; text-align: center; min-height: 120px;">
-            <div style="margin-bottom: 60px; font-weight: bold; color: #ccc;">Signature Area</div>
-            <p class="mb-0"><strong>BOD / General Manager</strong></p>
-            <p class="text-muted small">Name & Date</p>
-          </div>
-        </div>
-      </div>
-
-      <hr class="my-4" />
-
-      <!-- Notes -->
-      <div class="alert alert-info small">
-        <strong>Instruction:</strong> Print this form, collect signatures from Supervisor → Head of Division → Manager → BOD in order. 
-        Once all signatures are obtained, scan and upload the signed document for record-keeping.
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Action Buttons -->
-  <div class="row mt-4 mb-5">
-    <div class="col-12">
-      <button type="button" class="btn btn-primary" onclick="window.print()">
-        <i class="bx bx-printer"></i> Print Form
-      </button>
-      <a href="{{ route('berita-acara-v2.list') }}" class="btn btn-secondary">
-        <i class="bx bx-arrow-back"></i> Back to List
-      </a>
-    </div>
-  </div>
-
+<div class="sect">
+  <h3>Incident Description</h3>
+  <div class="box">{!! nl2br(e($ba->BA_Desc ?? '—')) !!}</div>
 </div>
 
-<style media="print">
-  body { margin: 0; padding: 10mm; background: white; }
-  .btn, .alert { display: none; }
-  .container-xxl { max-width: 100%; margin: 0; padding: 0; }
-  .card { border: none; box-shadow: none; }
-  .card-body { padding: 0; }
-  #printable-area { page-break-inside: avoid; }
-</style>
+@if($kronologi->count() > 0)
+<div class="sect">
+  <h3>Kronologi / Timeline</h3>
+  <div class="box">
+    @foreach($kronologi as $idx => $item)
+      <div>{{ $idx + 1 }}. {!! nl2br(e($item->kronlogi)) !!}</div>
+    @endforeach
+  </div>
+</div>
+@endif
 
-@endsection
+@if(!empty($ba->ba_temuan))
+<div class="sect">
+  <h3>Temuan / Issues</h3>
+  <div class="box">{!! nl2br(e($ba->ba_temuan)) !!}</div>
+</div>
+@endif
+
+@if(!empty($ba->ba_rekomendasi))
+<div class="sect">
+  <h3>Rekomendasi / Action Items</h3>
+  <div class="box">{!! nl2br(e($ba->ba_rekomendasi)) !!}</div>
+</div>
+@endif
+
+@if($categories->count() > 0)
+<div class="sect">
+  <h3>Kategori &amp; Opsi</h3>
+  <div class="box">
+    @foreach($categories->groupBy('nama') as $kategori => $items)
+      <div><b>• {{ $kategori }}</b>
+        @foreach($items as $item)
+          @if($item->deskripsi)
+            <span> &nbsp;→ {{ $item->deskripsi }}</span>
+          @endif
+        @endforeach
+      </div>
+    @endforeach
+  </div>
+</div>
+@endif
+
+<table class="sigs">
+  <thead>
+    <tr>
+      <th>PIC</th>
+      <th>Divisi</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="pic">{{ $ba->emp_name ?? ($ba->Ms_Emp_Code ?? '—') }} <span style="color:#666">(Pelaku)</span></td>
+      <td>{{ $ba->pelaku_divisi ?? '—' }}</td>
+    </tr>
+    <tr>
+      <td class="pic">{{ $ba->pelapor_name ?? ($ba->Ms_Pelapor_Code ?? '—') }} <span style="color:#666">(Pelapor)</span></td>
+      <td>{{ $ba->pelapor_divisi ?? '—' }}</td>
+    </tr>
+    <tr>
+      <td class="pic">Tri Hartati</td>
+      <td>Manager Finance</td>
+    </tr>
+    <tr>
+      <td class="pic">Dwi Arief W / Yesy Tjandra</td>
+      <td>Manager Operasional</td>
+    </tr>
+    <tr>
+      <td class="pic">Cliff Rogers</td>
+      <td>General Manager</td>
+    </tr>
+    <tr>
+      <td class="pic">Diana L / Charles W</td>
+      <td>BOD</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
