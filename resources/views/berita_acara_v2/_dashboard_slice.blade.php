@@ -115,12 +115,18 @@
           <th>Deskripsi</th>
           <th>PICA Code</th>
           <th>PICA Tanggal</th>
+          <th class="text-center" data-no-filter="1" data-orderable="false">Action</th>
         </tr>
       </thead>
       <tbody>
         @forelse ($slice['recent'] as $r)
+          @php
+            $tsBa = !empty($r->ba_created_at)
+              ? \Carbon\Carbon::parse($r->ba_created_at)->timestamp
+              : (!empty($r->Date_BA) ? \Carbon\Carbon::parse($r->Date_BA)->timestamp : 0);
+          @endphp
           <tr>
-            <td><small>{{ $r->Date_BA }}</small></td>
+            <td data-order="{{ $tsBa }}"><small>{{ $r->Date_BA }}</small></td>
             <td>
               <a href="{{ route('berita-acara-v2.show', ['kode' => $r->kode]) }}" title="Lihat detail BA">
                 <code class="small">{{ $r->kode }}</code>
@@ -146,7 +152,7 @@
               </a>
             </td>
             <td><span class="badge bg-label-primary">{{ $r->konteks }}</span></td>
-            <td><small>{{ \Illuminate\Support\Str::limit($r->deskripsi, 60) }}</small></td>
+            <td data-search="{{ $r->deskripsi }}" title="{{ $r->deskripsi }}"><small>{{ \Illuminate\Support\Str::limit($r->deskripsi, 60) }}</small></td>
             <td>
               @if (!empty($r->pica_kode))
                 <a href="{{ route('pica-v2.discussion', ['kode' => $r->pica_kode]) }}"
@@ -168,9 +174,16 @@
                 <small class="text-muted">—</small>
               @endif
             </td>
+            <td class="text-center">
+              <a href="{{ route('berita-acara-v2.print', ['kode' => $r->kode]) }}"
+                 class="btn btn-xs btn-outline-success py-0 px-2"
+                 title="Download PDF BA ini">
+                <i class="bx bx-printer"></i> Print
+              </a>
+            </td>
           </tr>
         @empty
-          <tr><td colspan="8" class="text-center text-muted py-3">Tidak ada BA pada rentang tanggal ini.</td></tr>
+          <tr><td colspan="9" class="text-center text-muted py-3">Tidak ada BA pada rentang tanggal ini.</td></tr>
         @endforelse
       </tbody>
     </table>

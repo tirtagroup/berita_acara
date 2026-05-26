@@ -210,13 +210,19 @@
       const colCount = $headerRow.find('th').length;
       const $filterRow = $('<tr class="dt-filter-row"></tr>');
       for (let i = 0; i < colCount; i++) {
-        const label = $headerRow.find('th').eq(i).text().trim();
-        $filterRow.append(
-          '<th>' +
-            '<input type="text" class="form-control form-control-sm dt-col-filter" ' +
-            'placeholder="Filter ' + label + '..." autocomplete="off">' +
-          '</th>'
-        );
+        const $th = $headerRow.find('th').eq(i);
+        const label = $th.text().trim();
+        const noFilter = $th.attr('data-no-filter') === '1';
+        if (noFilter) {
+          $filterRow.append('<th></th>');
+        } else {
+          $filterRow.append(
+            '<th>' +
+              '<input type="text" class="form-control form-control-sm dt-col-filter" ' +
+              'placeholder="Filter ' + label + '..." autocomplete="off">' +
+            '</th>'
+          );
+        }
       }
       $thead.append($filterRow);
 
@@ -225,9 +231,10 @@
         info: false,
         ordering: true,
         searching: true,
-        dom: 't',
+        dom: '<"row mb-2"<"col-sm-6"><"col-sm-6 d-flex justify-content-end"f>>t',
         orderCellsTop: true,   // sort dari row 1 (label) saja
         order: [[0, 'desc']],
+        language: { search: '', searchPlaceholder: 'Cari semua kolom...' },
       });
 
       // Pakai pattern DataTables official: columns().every() + bind ke header(i)

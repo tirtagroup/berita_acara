@@ -872,6 +872,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [BeritaAcaraV2Controller::class, 'dashboard'])->name('dashboard');
         Route::get('/list',      [BeritaAcaraV2Controller::class, 'list'])->name('list');
         Route::get('/show',      [BeritaAcaraV2Controller::class, 'show'])->name('show');
+        Route::get('/{kode}/print', [BeritaAcaraV2Controller::class, 'print'])->name('print');
         Route::get('/create',    [BeritaAcaraV2Controller::class, 'create'])->name('create');
         Route::post('/store',    [BeritaAcaraV2Controller::class, 'store'])->name('store');
         // Edit (admin OR creator+edit_allowed)
@@ -888,6 +889,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard',      [PicaV2Controller::class, 'dashboard'])->name('dashboard');
         Route::get('/dashboard-data', [PicaV2Controller::class, 'dashboardData'])->name('dashboard.data');
         Route::get('/list',           [PicaV2Controller::class, 'list'])->name('list');
+        Route::get('/{kode}/print',   [PicaV2Controller::class, 'print'])->name('print');
 
         Route::get('/create',         [PicaV2Controller::class, 'create'])->name('create');
         Route::post('/store',         [PicaV2Controller::class, 'store'])->name('store');
