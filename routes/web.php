@@ -17,7 +17,6 @@ use App\Http\Controllers\MsLocationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Tr_Sp_Controller;
 use App\Http\Controllers\import_dataController;
-use App\Http\Controllers\DataController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\Tr_AssasmenController;
@@ -148,30 +147,26 @@ Route::get('/pages/help-center-landing', $controller_path . '\pages\HelpCenterLa
 Route::get('/pages/help-center-categories', $controller_path . '\pages\HelpCenterCategories@index')->name('pages-help-center-categories');
 Route::get('/pages/help-center-article', $controller_path . '\pages\HelpCenterArticle@index')->name('pages-help-center-article');
 Route::get('/pages/pricing', $controller_path . '\pages\Pricing@index')->name('pages-pricing');
-Route::get('/pages/pricing-front', $controller_path . '\pages\PricingFront@index')->name('pages-pricing-front');
+// Removed: pricing-front route — controller App\Http\Controllers\pages\PricingFront does not exist (Sneat template demo, dead reference)
 Route::get('/pages/misc-error', $controller_path . '\pages\MiscError@index')->name('pages-misc-error');
 Route::get('/pages/misc-under-maintenance', $controller_path . '\pages\MiscUnderMaintenance@index')->name('pages-misc-under-maintenance');
 Route::get('/pages/misc-comingsoon', $controller_path . '\pages\MiscComingSoon@index')->name('pages-misc-comingsoon');
 Route::get('/pages/misc-not-authorized', $controller_path . '\pages\MiscNotAuthorized@index')->name('pages-misc-not-authorized');
 
-// authentication
-Route::get('/auth/login-front', $controller_path . '\authentications\LoginFront@index')->name('auth-login-front');
+// authentication (Sneat template demo routes — only Basic & Cover variants installed)
+// Removed: *Front variant routes (LoginFront, RegisterFront, VerifyEmailFront, ResetPasswordFront,
+//          ForgotPasswordFront, TwoStepsFront) — controllers tidak terinstall, break route:list.
 Route::get('/auth/login-basic', $controller_path . '\authentications\LoginBasic@index')->name('auth-login-basic');
 Route::get('/auth/login-cover', $controller_path . '\authentications\LoginCover@index')->name('auth-login-cover');
-Route::get('/auth/register-front', $controller_path . '\authentications\RegisterFront@index')->name('auth-register-front');
 Route::get('/auth/register-basic', $controller_path . '\authentications\RegisterBasic@index')->name('auth-register-basic');
 Route::get('/auth/register-cover', $controller_path . '\authentications\RegisterCover@index')->name('auth-register-cover');
 Route::get('/auth/register-multisteps', $controller_path . '\authentications\RegisterMultiSteps@index')->name('auth-register-multisteps');
-Route::get('/auth/verify-email-front', $controller_path . '\authentications\VerifyEmailFront@index')->name('auth-verify-email-front');
 Route::get('/auth/verify-email-basic', $controller_path . '\authentications\VerifyEmailBasic@index')->name('auth-verify-email-basic');
 Route::get('/auth/verify-email-cover', $controller_path . '\authentications\VerifyEmailCover@index')->name('auth-verify-email-cover');
-Route::get('/auth/reset-password-front', $controller_path . '\authentications\ResetPasswordFront@index')->name('auth-reset-password-front');
 Route::get('/auth/reset-password-basic', $controller_path . '\authentications\ResetPasswordBasic@index')->name('auth-reset-password-basic');
 Route::get('/auth/reset-password-cover', $controller_path . '\authentications\ResetPasswordCover@index')->name('auth-reset-password-cover');
-Route::get('/auth/forgot-password-front', $controller_path . '\authentications\ForgotPasswordFront@index')->name('auth-forgot-password-front');
 Route::get('/auth/forgot-password-basic', $controller_path . '\authentications\ForgotPasswordBasic@index')->name('auth-reset-password-basic');
 Route::get('/auth/forgot-password-cover', $controller_path . '\authentications\ForgotPasswordCover@index')->name('auth-forgot-password-cover');
-Route::get('/auth/two-steps-front', $controller_path . '\authentications\TwoStepsFront@index')->name('auth-two-steps-front');
 Route::get('/auth/two-steps-basic', $controller_path . '\authentications\TwoStepsBasic@index')->name('auth-two-steps-basic');
 Route::get('/auth/two-steps-cover', $controller_path . '\authentications\TwoStepsCover@index')->name('auth-two-steps-cover');
 
@@ -405,7 +400,7 @@ Route::get('/tr_candidates/all_candidates',[LoginCompanyController::class, 'kand
 Route::get('/detail_kandidat/detail_kandidat_progress/{Handphone}',[tr_candidateController::class, 'detail_kandidat_progress'])->middleware('auth');
 Route::get('/detail_kandidat/download_cv/{Handphone}',[tr_candidateController::class, 'download_cv'])->middleware('auth');
 Route::post('/tr_candidates/all_candidates/{Email}',[LoginCompanyController::class, 'update_candidate_by_email'])->middleware('auth');
-Route::post('/all_candidates', 'LoginCompanyController@update_candidate_by_email')->name('all_candidates');
+Route::post('/all_candidates', [LoginCompanyController::class, 'update_candidate_by_email'])->name('all_candidates');
 
 Route::get('edit_status/{Email}', [LoginCompanyController::class, 'editstatus'])->middleware('auth');
 Route::post('update_status', [LoginCompanyController::class, 'update_status'])->middleware('auth');
@@ -479,10 +474,9 @@ Route::post('edit-type', [MS_Type_SP_Controller::class, 'edit'])->middleware('au
 Route::post('delete-type', [MS_Type_SP_Controller::class, 'destroy'])->middleware('auth');
 
 //MS Lokasi
-Route::get('/kir/master_lokasi', [MSBranchPasswordController::class, 'index'])->middleware('auth');
-Route::post('add-update-branch', [MSBranchPasswordController::class, 'store'])->middleware('auth');
-Route::post('edit-branch', [MSBranchPasswordController::class, 'edit'])->middleware('auth');
-Route::post('delete-branch', [MSBranchPasswordController::class, 'destroy'])->middleware('auth');
+// Removed: 4 routes (kir/master_lokasi, add-update-branch, edit-branch, delete-branch) — controller
+// App\Http\Controllers\MSBranchPasswordController does not exist (legacy dead reference, no view referencing).
+// Functional equivalent ada di routes /lokasi/master_lokasi (MsLocationController) di bawah.
 //master lokasi
 Route::get('/lokasi/master_lokasi', [MsLocationController::class, 'index'])->middleware('auth');
 Route::post('add-update-lokasi', [MsLocationController::class, 'store'])->middleware('auth');

@@ -25,3 +25,7 @@ yarn-error.log
 /public/assets/js
 /public/assets/css
 /public/assets/vendor
+# Exclude large binary/archive files from public/assets (accidental commits)
+/public/assets/*.zip
+/public/assets/*.tar.gz
+/public/assets/*.7z
