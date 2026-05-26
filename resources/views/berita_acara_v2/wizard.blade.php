@@ -167,6 +167,18 @@
               <label class="form-label">Deskripsi singkat <span class="text-danger">*</span></label>
               <textarea name="deskripsi" class="form-control" rows="3" maxlength="500" required></textarea>
             </div>
+            
+            <div class="col-12">
+              <label class="form-label">Temuan / Issues (Opsional)</label>
+              <textarea name="ba_temuan" class="form-control" rows="3" maxlength="2000" placeholder="Apa yang ditemukan dari investigasi..."></textarea>
+              <small class="text-muted">Detail temuan/masalah yang ditemukan. Opsional.</small>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Rekomendasi / Action Items (Opsional)</label>
+              <textarea name="ba_rekomendasi" class="form-control" rows="3" maxlength="2000" placeholder="Apa yang perlu dilakukan..."></textarea>
+              <small class="text-muted">Rekomendasi atau tindakan lanjutan yang disarankan. Opsional.</small>
+            </div>
 
             {{-- Kronologi (pindah dari step LAKA — wajib untuk semua BA) --}}
             <div class="col-12">
@@ -324,8 +336,10 @@
                 <dt class="col-sm-3">Subject (Emp)</dt><dd class="col-sm-9" id="rv-emp">—</dd>
                 <dt class="col-sm-3">Divisi</dt><dd class="col-sm-9" id="rv-div">—</dd>
                 <dt class="col-sm-3">Deskripsi</dt><dd class="col-sm-9" id="rv-deskripsi">—</dd>
+                <dt class="col-sm-3">Temuan</dt><dd class="col-sm-9"><pre id="rv-temuan" style="white-space: pre-wrap;">—</pre></dd>
+                <dt class="col-sm-3">Rekomendasi</dt><dd class="col-sm-9"><pre id="rv-rekomendasi" style="white-space: pre-wrap;">—</pre></dd>
                 <dt class="col-sm-3">Kategori</dt><dd class="col-sm-9" id="rv-kategori">—</dd>
-                <dt class="col-sm-3">Kronologi</dt><dd class="col-sm-9" id="rv-kronologi">—</dd>
+                <dt class="col-sm-3">Kronologi</dt><dd class="col-sm-9"><pre id="rv-kronologi" style="white-space: pre-wrap;">—</pre></dd>
               </dl>
             </div>
           </div>
@@ -739,6 +753,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rv-emp').textContent = document.querySelector('[name="emp_code"]').value;
     document.getElementById('rv-div').textContent = document.querySelector('[name="emp_div"]').value || '—';
     document.getElementById('rv-deskripsi').textContent = document.querySelector('[name="deskripsi"]').value;
+    document.getElementById('rv-temuan').textContent = document.querySelector('[name="ba_temuan"]').value || '(tidak diisi)';
+    document.getElementById('rv-rekomendasi').textContent = document.querySelector('[name="ba_rekomendasi"]').value || '(tidak diisi)';
 
     const katList = Array.from(document.querySelectorAll('.kategori-check:checked')).map(cb => {
       const block = cb.closest('.kategori-block');
@@ -758,9 +774,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const krono = Array.from(document.querySelectorAll('[name="kronologi[]"]'))
                       .map(t => t.value.trim()).filter(Boolean);
-    document.getElementById('rv-kronologi').innerHTML = krono.length
-      ? `<ol class="mb-0">${krono.map(k => `<li>${k}</li>`).join('')}</ol>`
-      : '<em class="text-muted">Tidak diisi</em>';
+    document.getElementById('rv-kronologi').textContent = krono.length
+      ? krono.map((k, i) => `${i + 1}. ${k}`).join('\n')
+      : '(tidak diisi)';
   }
 });
 </script>
