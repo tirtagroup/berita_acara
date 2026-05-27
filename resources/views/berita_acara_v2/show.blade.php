@@ -26,7 +26,14 @@
   <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <h4 class="fw-bold py-3 mb-0">
       <span class="text-muted fw-light">Berita Acara /</span> Detail
-      <br><code class="fs-6">{{ $ba->Tr_BA_Main_Code }}</code>
+      <br>
+      <code class="fs-6">{{ $ba->Tr_BA_Main_Code }}</code>
+      <button type="button" class="btn btn-sm btn-link p-0 ms-1 align-baseline"
+              id="btn-copy-show-link-header"
+              title="Copy link halaman ini"
+              data-url="{{ url(route('berita-acara-v2.show', ['kode' => $ba->Tr_BA_Main_Code], false)) }}">
+        <i class="bx bx-link"></i> <small>Copy link</small>
+      </button>
       @if (!empty($ba->edit_allowed))
         <span class="badge bg-label-warning ms-2" title="Creator boleh edit BA ini"><i class="bx bx-edit"></i> Edit terbuka</span>
       @endif
@@ -78,6 +85,28 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+
+          {{-- Quick link section — selalu visible, tidak perlu klik Generate --}}
+          @php
+            $showFullUrl = url(route('berita-acara-v2.show', ['kode' => $ba->Tr_BA_Main_Code], false));
+          @endphp
+          <div class="card mb-3 border-primary">
+            <div class="card-body py-2">
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="flex-grow-1">
+                  <small class="text-muted">🔗 Link halaman BA ini:</small><br>
+                  <a href="{{ $showFullUrl }}" target="_blank" class="text-break small font-monospace">
+                    {{ $showFullUrl }}
+                  </a>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        id="btn-copy-show-link" title="Copy link ke clipboard"
+                        data-url="{{ $showFullUrl }}">
+                  <i class="bx bx-copy"></i> Copy
+                </button>
+              </div>
+            </div>
+          </div>
 
           {{-- Tabs: pilih mode --}}
           <ul class="nav nav-tabs nav-fill mb-3" role="tablist">
@@ -189,8 +218,34 @@
     </div>
   </div>
 
-  {{-- JS: WA Web preparation handler --}}
+  {{-- JS: Copy link + WA Web preparation handler --}}
   <script>
+    // Copy link halaman (handle multiple copy buttons via class selector pattern)
+    (function() {
+      const btns = ['btn-copy-show-link', 'btn-copy-show-link-header']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+
+      btns.forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const url = btn.dataset.url;
+          const orig = btn.innerHTML;
+          try {
+            await navigator.clipboard.writeText(url);
+          } catch (err) {
+            // Fallback browser lama
+            const ta = document.createElement('textarea');
+            ta.value = url; document.body.appendChild(ta); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          btn.innerHTML = '<i class="bx bx-check"></i> Copied!';
+          setTimeout(() => { btn.innerHTML = orig; }, 1500);
+        });
+      });
+    })();
+
+    // WA Web prepare + open
     (function() {
       const btn = document.getElementById('btn-wa-web-prepare');
       if (!btn) return;
