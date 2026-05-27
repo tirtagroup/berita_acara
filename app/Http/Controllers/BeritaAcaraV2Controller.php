@@ -370,7 +370,7 @@ class BeritaAcaraV2Controller extends Controller
         $kategoriList = \App\Models\BaKategori::where('active', true)->orderBy('nama')->get();
         $lokasi  = DB::table('ms_lokasi')->select('lokasi_code', 'lokasi_desc')->orderBy('lokasi_desc')->get();
         $company = DB::table('ms_company')->select('company_code', 'description')->orderBy('description')->get();
-        $divisi  = DB::table('ms_subbdivision')->select('subbdiv_code', 'subbdiv_desc')->orderBy('subbdiv_desc')->get();
+        $divisi  = DB::table('ms_divisi')->select('subbdiv_code', 'subbdiv_desc')->orderBy('subbdiv_desc')->get();
 
         return view('berita_acara_v2.edit', compact(
             'ba', 'kategoriAttached', 'kronologi', 'kategoriList',
