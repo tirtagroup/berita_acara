@@ -11,6 +11,12 @@
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   @endif
+  @if (session('warning'))
+    <div class="alert alert-warning alert-dismissible">
+      {!! session('warning') !!}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  @endif
   @if ($errors->any())
     <div class="alert alert-danger">
       <ul class="mb-0">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
@@ -32,6 +38,14 @@
           <i class="bx bx-edit"></i> Edit BA
         </a>
       @endif
+      <a href="{{ route('berita-acara-v2.print', ['kode' => $ba->Tr_BA_Main_Code]) }}" class="btn btn-outline-primary"
+         target="_blank" title="Download PDF BA">
+        <i class="bx bx-printer"></i> Print PDF
+      </a>
+      <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalShareWa"
+              title="Kirim BA ke WhatsApp group">
+        <i class="bx bxl-whatsapp"></i> Share ke WA
+      </button>
       @if (!empty($isAdmin))
         <form method="POST" action="{{ route('berita-acara-v2.toggle-edit', ['kode' => $ba->Tr_BA_Main_Code]) }}"
               onsubmit="return confirm('{{ $ba->edit_allowed ? 'Kunci kembali (creator tidak boleh edit)?' : 'Izinkan creator edit BA ini?' }}');">
@@ -46,6 +60,65 @@
       <a href="{{ route('berita-acara-v2.dashboard') }}" class="btn btn-outline-secondary">
         <i class="bx bx-arrow-back"></i> Dashboard
       </a>
+    </div>
+  </div>
+
+  {{-- ============ MODAL: Share ke WhatsApp ============ --}}
+  <div class="modal fade" id="modalShareWa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="POST" action="{{ route('berita-acara-v2.share-wa', ['kode' => $ba->Tr_BA_Main_Code]) }}">
+        @csrf
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="bx bxl-whatsapp text-success"></i> Share BA ke WhatsApp</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">
+              BA akan di-generate jadi PDF, di-upload ke storage publik, lalu dikirim via WhatsApp dengan
+              link ke PDF + link ke halaman BA detail.
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label">Nomor tujuan / Group ID</label>
+              <input type="text" name="to_number" class="form-control"
+                     placeholder="628123456789 (kosongkan = pakai WA_QONTAK_NUMBERS default)">
+              <small class="form-text text-muted">
+                Format: 62 + nomor tanpa awalan 0. Untuk multi-tujuan default, kosongkan field ini.
+              </small>
+            </div>
+
+            <div class="alert alert-info py-2 mb-0 small">
+              <strong>Yang akan terkirim:</strong>
+              <ul class="mb-0 mt-1">
+                <li>Kode BA: <code>{{ $ba->Tr_BA_Main_Code }}</code></li>
+                <li>Tanggal: {{ \Carbon\Carbon::parse($ba->Date_BA)->format('d M Y') }}</li>
+                <li>Pelapor + Karyawan + Konteks + Lokasi + Deskripsi + Kategori + Kronologi</li>
+                <li>📎 Link PDF (download)</li>
+                <li>🔗 Link halaman detail BA</li>
+              </ul>
+            </div>
+
+            @php
+              $waToken = config('services.wa_qontak.token');
+            @endphp
+            @if (empty($waToken))
+              <div class="alert alert-warning py-2 mb-0 mt-2 small">
+                <i class="bx bx-error"></i> <strong>Catatan:</strong>
+                <code>WA_QONTAK_TOKEN</code> belum diset di <code>.env</code>.
+                PDF akan tetap di-generate, tapi WA TIDAK akan terkirim
+                (silent skip). Setup credentials dulu via Mekari Qontak dashboard.
+              </div>
+            @endif
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+            <button type="submit" class="btn btn-success">
+              <i class="bx bxl-whatsapp"></i> Kirim
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 

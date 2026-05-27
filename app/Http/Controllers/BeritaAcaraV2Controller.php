@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Controller wizard Berita Acara (Create mode).
@@ -452,16 +453,33 @@ class BeritaAcaraV2Controller extends Controller
      */
     public function print(string $kode)
     {
+        [$filename, $pdfBytes] = $this->buildBaPdf($kode);
+        return response($pdfBytes, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    /**
+     * Helper: ambil data BA lengkap + render PDF, return [filename, binary content].
+     * Dipakai oleh print() (download langsung) dan shareToWa() (save + kirim via WA).
+     */
+    private function buildBaPdf(string $kode): array
+    {
         $erpDb = config('database.connections.mysql_new.database');
         $empSub = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
 
+        // ms_division ada di kedua DB dengan column name beda:
+        //   mysql (HR_Worksheet): div_code
+        //   mysql_new (ERP):       div_id
+        // Pakai ERP (mysql_new) karena `ba.Ms_Emp_Div` referensi emp_division dari Ms_User_Emp.
         $ba = DB::table('Tr_Ba_Main_New as ba')
             ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code')
             ->leftJoinSub($empSub, 'mp', 'mp.emp_id', '=', 'ba.Ms_Pelapor_Code')
-            ->leftJoin('ms_division as dv_pelaku',  'ba.Ms_Emp_Div',     '=', 'dv_pelaku.div_id')
-            ->leftJoin('ms_division as dv_pelapor', 'ba.Ms_Pelapor_Div', '=', 'dv_pelapor.div_id')
+            ->leftJoin("{$erpDb}.ms_division as dv_pelaku",  'ba.Ms_Emp_Div',     '=', 'dv_pelaku.div_id')
+            ->leftJoin("{$erpDb}.ms_division as dv_pelapor", 'ba.Ms_Pelapor_Div', '=', 'dv_pelapor.div_id')
             ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
             ->leftJoin('ms_lokasi as l', 'ba.rec_areacode', '=', 'l.lokasi_code')
             ->where('ba.Tr_BA_Main_Code', $kode)
@@ -503,11 +521,88 @@ class BeritaAcaraV2Controller extends Controller
         ]);
         $mpdf->WriteHTML($html);
 
-        $filename = 'BA_' . $ba->Tr_BA_Main_Code . '.pdf';
-        return response($mpdf->Output($filename, \Mpdf\Output\Destination::STRING_RETURN), 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
+        // Sanitize filename — kode BA bisa punya karakter seperti `/` atau spasi
+        $safeKode = preg_replace('/[^A-Za-z0-9_-]/', '_', $ba->Tr_BA_Main_Code);
+        $filename = 'BA_' . $safeKode . '.pdf';
+        $bytes    = $mpdf->Output($filename, \Mpdf\Output\Destination::STRING_RETURN);
+
+        return [$filename, $bytes, $ba, $kronologi, $categories];
+    }
+
+    /**
+     * Share BA via WhatsApp ke nomor/group yang dikonfigurasi.
+     * Flow:
+     *   1. Generate PDF dari data BA (reuse helper buildBaPdf)
+     *   2. Save PDF ke storage/app/public/ba-pdf/ (accessible via /storage/ba-pdf/...)
+     *   3. Format pesan: BA content + link ke PDF + link ke BA show page
+     *   4. Kirim broadcast via WaQontakService (silent skip kalau credentials kosong)
+     *
+     * URL: POST /beritaacara/v2/{kode}/share-wa
+     */
+    public function shareToWa(Request $request, string $kode)
+    {
+        [$filename, $pdfBytes, $ba, $kronologi, $categories] = $this->buildBaPdf($kode);
+
+        // Save PDF ke storage publik (overwrite kalau sudah ada — selalu fresh)
+        $relativePath = "ba-pdf/{$filename}";
+        Storage::disk('public')->put($relativePath, $pdfBytes);
+        $pdfUrl  = url(Storage::url($relativePath));
+        $showUrl = url(route('berita-acara-v2.show', ['kode' => $kode], false));
+
+        // Format kategori (gabung jadi 1 string)
+        $kategoriStr = $categories->map(function ($c) {
+                return $c->nama . ($c->deskripsi ? " ({$c->deskripsi})" : '');
+            })->unique()->take(5)->implode(', ');
+        if ($categories->count() > 5) {
+            $kategoriStr .= ', +' . ($categories->count() - 5);
+        }
+
+        // Format kronologi (gabung jadi 1 string, truncate)
+        $kronoStr = $kronologi->pluck('detail')
+            ->map(fn($d) => '• ' . trim($d))
+            ->implode("\n");
+
+        // Build data array untuk template Qontak (deskripsi+kronologi include link)
+        $deskripsi = mb_substr($ba->BA_Desc ?? '', 0, 200);
+        $deskripsi .= "\n\n📎 PDF: {$pdfUrl}\n🔗 Detail: {$showUrl}";
+
+        $waData = [
+            'ba_code'   => $ba->Tr_BA_Main_Code,
+            'bu_kode'   => $ba->Ms_BA_type_Code ?? '-',
+            'tanggal'   => $ba->Date_BA,
+            'pelapor'   => $ba->pelapor_name ?? ($ba->Ms_Pelapor_Code ?? '-'),
+            'emp_name'  => $ba->emp_name ?? ($ba->Ms_Emp_Code ?? '-'),
+            'emp_div'   => $ba->pelaku_divisi ?? '-',
+            'cabang'    => $ba->company_name ?? '-',
+            'lokasi'    => $ba->lokasi_name ?? '-',
+            'deskripsi' => $deskripsi,
+            'kategori'  => $kategoriStr ?: '-',
+            'kronologi' => $kronoStr ?: '-',
+        ];
+
+        // Override recipient kalau user input nomor manual di modal
+        $manualNumber = trim($request->input('to_number', ''));
+        if ($manualNumber !== '') {
+            config(['services.wa_qontak.numbers' => $manualNumber]);
+        }
+
+        try {
+            app(WaQontakService::class)->sendBaNotification($waData);
+
+            // Cek apakah credentials actually set (untuk feedback ke user)
+            $token = config('services.wa_qontak.token');
+            if (empty($token)) {
+                return back()->with('warning',
+                    "PDF di-generate ✅, tapi WA TIDAK terkirim karena credentials Qontak belum diset di .env. " .
+                    "Download PDF: {$pdfUrl}"
+                );
+            }
+
+            return back()->with('success', "BA {$ba->Tr_BA_Main_Code} dikirim ke WhatsApp (PDF: {$filename}).");
+        } catch (\Throwable $e) {
+            Log::error('shareToWa gagal: ' . $e->getMessage(), ['kode' => $kode]);
+            return back()->withErrors(['msg' => 'Gagal kirim WA: ' . $e->getMessage()]);
+        }
     }
 
     /**
