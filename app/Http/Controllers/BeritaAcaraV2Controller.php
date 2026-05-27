@@ -300,10 +300,13 @@ class BeritaAcaraV2Controller extends Controller
 
         $canEdit = $this->canEditBa($ba);
         $isAdmin = $this->isAdmin();
+        // Permission untuk kirim WA via Mekari Qontak (broadcast API): admin only.
+        // User non-admin tetap bisa pakai "WA Web" mode (open WA Web di browser sendiri).
+        $canSendMekari = $isAdmin;
 
         return view('berita_acara_v2.show', compact(
             'ba', 'kategoris', 'kronologi', 'requestRevisi', 'revisiDetail', 'revisiApproval',
-            'picaList', 'canEdit', 'isAdmin'
+            'picaList', 'canEdit', 'isAdmin', 'canSendMekari'
         ));
     }
 
@@ -541,6 +544,10 @@ class BeritaAcaraV2Controller extends Controller
      */
     public function shareToWa(Request $request, string $kode)
     {
+        // Permission gate: hanya admin yang boleh broadcast via Mekari Qontak
+        // (consume quota + paid SaaS). Non-admin pakai opsi 'WA Web' yang tidak hit API.
+        abort_unless($this->isAdmin(), 403, 'Hanya admin yang bisa kirim WA via Mekari (broadcast).');
+
         [$filename, $pdfBytes, $ba, $kronologi, $categories] = $this->buildBaPdf($kode);
 
         // Save PDF ke storage publik (overwrite kalau sudah ada — selalu fresh)
@@ -559,7 +566,8 @@ class BeritaAcaraV2Controller extends Controller
 
         // Format kronologi (gabung jadi 1 string, truncate)
         $kronoStr = $kronologi->pluck('detail')
-            ->map(fn($d) => '• ' . trim($d))
+            ->filter(fn($d) => !empty(trim((string) $d)))
+            ->map(fn($d) => '• ' . trim((string) $d))
             ->implode("\n");
 
         // Build data array untuk template Qontak (deskripsi+kronologi include link)
@@ -603,6 +611,55 @@ class BeritaAcaraV2Controller extends Controller
             Log::error('shareToWa gagal: ' . $e->getMessage(), ['kode' => $kode]);
             return back()->withErrors(['msg' => 'Gagal kirim WA: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * AJAX: Generate PDF (kalau belum ada) + return PDF URL + pre-formatted WA text.
+     *
+     * Dipakai oleh tombol "WA Web" di frontend — user open WA Web sendiri di browser,
+     * paste text yang sudah pre-formatted, manual pilih chat/group + manual attach PDF.
+     * Tidak hit Qontak API → tidak perlu permission admin, tidak consume quota.
+     *
+     * URL: POST /beritaacara/v2/{kode}/prepare-pdf
+     * Response: { ok, pdf_url, show_url, wa_text }
+     */
+    public function preparePdf(string $kode)
+    {
+        [$filename, $pdfBytes, $ba, $kronologi, $categories] = $this->buildBaPdf($kode);
+
+        $relativePath = "ba-pdf/{$filename}";
+        Storage::disk('public')->put($relativePath, $pdfBytes);
+        $pdfUrl  = url(Storage::url($relativePath));
+        $showUrl = url(route('berita-acara-v2.show', ['kode' => $kode], false));
+
+        $kategoriStr = $categories->map(function ($c) {
+                return $c->nama . ($c->deskripsi ? " ({$c->deskripsi})" : '');
+            })->unique()->take(5)->implode(', ');
+
+        $kronoStr = $kronologi->pluck('detail')
+            ->filter(fn($d) => !empty(trim((string) $d)))
+            ->map(fn($d) => '• ' . trim((string) $d))
+            ->implode("\n");
+
+        $waText = "*BERITA ACARA* 📋\n\n"
+                . "*Kode:* {$ba->Tr_BA_Main_Code}\n"
+                . "*Konteks:* " . ($ba->Ms_BA_type_Code ?? '-') . "\n"
+                . "*Tanggal:* " . \Carbon\Carbon::parse($ba->Date_BA)->format('d M Y') . "\n\n"
+                . "👤 *Karyawan:* " . ($ba->emp_name ?? $ba->Ms_Emp_Code ?? '-') . "\n"
+                . "🏢 *Cabang:* " . ($ba->company_name ?? '-') . "\n"
+                . "📍 *Lokasi:* " . ($ba->lokasi_name ?? '-') . "\n\n"
+                . "📝 *Deskripsi:*\n" . mb_substr($ba->BA_Desc ?? '-', 0, 300) . "\n\n"
+                . ($kategoriStr ? "🏷️ *Kategori:* {$kategoriStr}\n\n" : '')
+                . ($kronoStr ? "📖 *Kronologi:*\n{$kronoStr}\n\n" : '')
+                . "📎 PDF: {$pdfUrl}\n"
+                . "🔗 Detail: {$showUrl}";
+
+        return response()->json([
+            'ok'       => true,
+            'pdf_url'  => $pdfUrl,
+            'show_url' => $showUrl,
+            'wa_text'  => $waText,
+        ]);
     }
 
     /**

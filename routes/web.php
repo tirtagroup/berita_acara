@@ -873,7 +873,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/list',      [BeritaAcaraV2Controller::class, 'list'])->name('list');
         Route::get('/show',      [BeritaAcaraV2Controller::class, 'show'])->name('show');
         Route::get('/{kode}/print', [BeritaAcaraV2Controller::class, 'print'])->name('print');
-        Route::post('/{kode}/share-wa', [BeritaAcaraV2Controller::class, 'shareToWa'])->name('share-wa');
+        Route::post('/{kode}/share-wa',   [BeritaAcaraV2Controller::class, 'shareToWa'])->name('share-wa');
+        Route::post('/{kode}/prepare-pdf', [BeritaAcaraV2Controller::class, 'preparePdf'])->name('prepare-pdf');
         Route::get('/create',    [BeritaAcaraV2Controller::class, 'create'])->name('create');
         Route::post('/store',    [BeritaAcaraV2Controller::class, 'store'])->name('store');
         // Edit (admin OR creator+edit_allowed)

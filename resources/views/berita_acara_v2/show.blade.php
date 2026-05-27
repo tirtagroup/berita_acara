@@ -42,10 +42,12 @@
          target="_blank" title="Download PDF BA">
         <i class="bx bx-printer"></i> Print PDF
       </a>
-      <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalShareWa"
-              title="Kirim BA ke WhatsApp group">
-        <i class="bx bxl-whatsapp"></i> Share ke WA
-      </button>
+      <div class="btn-group">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalShareWa"
+                title="Kirim BA ke WhatsApp">
+          <i class="bx bxl-whatsapp"></i> Share ke WA
+        </button>
+      </div>
       @if (!empty($isAdmin))
         <form method="POST" action="{{ route('berita-acara-v2.toggle-edit', ['kode' => $ba->Tr_BA_Main_Code]) }}"
               onsubmit="return confirm('{{ $ba->edit_allowed ? 'Kunci kembali (creator tidak boleh edit)?' : 'Izinkan creator edit BA ini?' }}');">
@@ -63,64 +65,182 @@
     </div>
   </div>
 
-  {{-- ============ MODAL: Share ke WhatsApp ============ --}}
+  {{-- ============ MODAL: Share ke WhatsApp (2 mode) ============ --}}
+  @php
+    $waToken = config('services.wa_qontak.token');
+    $canSendMekari = $canSendMekari ?? false;
+  @endphp
   <div class="modal fade" id="modalShareWa" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <form method="POST" action="{{ route('berita-acara-v2.share-wa', ['kode' => $ba->Tr_BA_Main_Code]) }}">
-        @csrf
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title"><i class="bx bxl-whatsapp text-success"></i> Share BA ke WhatsApp</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="small text-muted">
-              BA akan di-generate jadi PDF, di-upload ke storage publik, lalu dikirim via WhatsApp dengan
-              link ke PDF + link ke halaman BA detail.
-            </p>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bx bxl-whatsapp text-success"></i> Share BA ke WhatsApp</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
 
-            <div class="mb-3">
-              <label class="form-label">Nomor tujuan / Group ID</label>
-              <input type="text" name="to_number" class="form-control"
-                     placeholder="628123456789 (kosongkan = pakai WA_QONTAK_NUMBERS default)">
-              <small class="form-text text-muted">
-                Format: 62 + nomor tanpa awalan 0. Untuk multi-tujuan default, kosongkan field ini.
-              </small>
-            </div>
+          {{-- Tabs: pilih mode --}}
+          <ul class="nav nav-tabs nav-fill mb-3" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-wa-web" type="button">
+                <i class="bx bx-globe"></i> WA Web (manual)
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link {{ $canSendMekari ? '' : 'disabled' }}"
+                      data-bs-toggle="tab" data-bs-target="#tab-wa-mekari" type="button"
+                      {{ $canSendMekari ? '' : 'disabled' }}>
+                <i class="bx bx-broadcast"></i> Mekari (broadcast)
+                @if (!$canSendMekari)
+                  <span class="badge bg-secondary ms-1" title="Admin only">🔒</span>
+                @endif
+              </button>
+            </li>
+          </ul>
 
-            <div class="alert alert-info py-2 mb-0 small">
-              <strong>Yang akan terkirim:</strong>
-              <ul class="mb-0 mt-1">
-                <li>Kode BA: <code>{{ $ba->Tr_BA_Main_Code }}</code></li>
-                <li>Tanggal: {{ \Carbon\Carbon::parse($ba->Date_BA)->format('d M Y') }}</li>
-                <li>Pelapor + Karyawan + Konteks + Lokasi + Deskripsi + Kategori + Kronologi</li>
-                <li>📎 Link PDF (download)</li>
-                <li>🔗 Link halaman detail BA</li>
-              </ul>
-            </div>
+          <div class="tab-content">
 
-            @php
-              $waToken = config('services.wa_qontak.token');
-            @endphp
-            @if (empty($waToken))
-              <div class="alert alert-warning py-2 mb-0 mt-2 small">
-                <i class="bx bx-error"></i> <strong>Catatan:</strong>
-                <code>WA_QONTAK_TOKEN</code> belum diset di <code>.env</code>.
-                PDF akan tetap di-generate, tapi WA TIDAK akan terkirim
-                (silent skip). Setup credentials dulu via Mekari Qontak dashboard.
+            {{-- ========== Tab 1: WA Web mode ========== --}}
+            <div class="tab-pane fade show active" id="tab-wa-web" role="tabpanel">
+              <p class="small text-muted">
+                Open WhatsApp Web di browser kamu sendiri dengan text BA + link PDF + link detail
+                sudah pre-filled. Kamu pilih chat/group, paste (atau langsung tampil), lalu kirim.
+                Untuk attach PDF: klik link PDF di pesan → download → upload manual via WA.
+              </p>
+
+              <div class="alert alert-light py-2 mb-3 small">
+                <strong>Tidak ada konsumsi quota API.</strong> Pakai sesi WA Web kamu sendiri.
+                Semua user authorized bisa pakai mode ini.
               </div>
-            @endif
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-            <button type="submit" class="btn btn-success">
-              <i class="bx bxl-whatsapp"></i> Kirim
-            </button>
+
+              <div id="wa-web-preview" class="d-none">
+                <label class="form-label small mb-1">Preview text yang akan terkirim:</label>
+                <textarea id="wa-web-text" class="form-control font-monospace small" rows="12" readonly></textarea>
+                <div class="mt-2 small">
+                  <span class="me-3">📎 PDF: <a id="wa-web-pdf-link" href="#" target="_blank">(generating...)</a></span>
+                  <a id="wa-web-show-link" href="#" target="_blank">🔗 BA detail</a>
+                </div>
+              </div>
+
+              <div id="wa-web-loading" class="text-center py-4">
+                <p class="text-muted small">Klik tombol di bawah untuk generate PDF + open WA Web</p>
+              </div>
+
+              <div class="d-flex gap-2 mt-3 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="button" id="btn-wa-web-prepare" class="btn btn-success">
+                  <i class="bx bxl-whatsapp"></i> Generate &amp; Open WA Web
+                </button>
+              </div>
+            </div>
+
+            {{-- ========== Tab 2: Mekari mode (admin only) ========== --}}
+            <div class="tab-pane fade" id="tab-wa-mekari" role="tabpanel">
+              @if (!$canSendMekari)
+                <div class="alert alert-warning py-3 small">
+                  <i class="bx bx-lock"></i> <strong>Mode ini hanya untuk admin.</strong>
+                  Mekari Qontak broadcast consume quota berbayar — diatur per user level.
+                  Untuk request akses: hubungi IT admin atau pakai tab "WA Web" di atas.
+                </div>
+              @else
+                <form method="POST" action="{{ route('berita-acara-v2.share-wa', ['kode' => $ba->Tr_BA_Main_Code]) }}" id="form-wa-mekari">
+                  @csrf
+                  <p class="small text-muted">
+                    Broadcast BA ke nomor/group via <strong>Mekari Qontak API</strong>. Konsumsi quota Qontak.
+                    Recipient otomatis dari <code>WA_QONTAK_NUMBERS</code> di <code>.env</code>, atau override di bawah.
+                  </p>
+
+                  <div class="mb-3">
+                    <label class="form-label">Nomor tujuan / Group ID (override)</label>
+                    <input type="text" name="to_number" class="form-control"
+                           placeholder="628123456789 (kosongkan = pakai WA_QONTAK_NUMBERS default)">
+                    <small class="form-text text-muted">
+                      Format: 62 + nomor tanpa awalan 0.
+                    </small>
+                  </div>
+
+                  <div class="alert alert-info py-2 mb-3 small">
+                    <strong>Yang akan terkirim:</strong>
+                    Kode BA, Konteks, Tanggal, Pelapor, Karyawan, Divisi, Cabang, Lokasi,
+                    Deskripsi (200 char), Kategori, Kronologi (500 char), 📎 PDF link, 🔗 Detail link.
+                  </div>
+
+                  @if (empty($waToken))
+                    <div class="alert alert-warning py-2 mb-3 small">
+                      <i class="bx bx-error"></i> <strong>Catatan:</strong>
+                      <code>WA_QONTAK_TOKEN</code> belum diset di <code>.env</code>.
+                      PDF tetap di-generate, tapi WA <strong>tidak terkirim</strong> (silent skip).
+                    </div>
+                  @endif
+
+                  <div class="d-flex gap-2 mt-3 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">
+                      <i class="bx bx-broadcast"></i> Kirim via Mekari
+                    </button>
+                  </div>
+                </form>
+              @endif
+            </div>
+
           </div>
         </div>
-      </form>
+      </div>
     </div>
   </div>
+
+  {{-- JS: WA Web preparation handler --}}
+  <script>
+    (function() {
+      const btn = document.getElementById('btn-wa-web-prepare');
+      if (!btn) return;
+
+      btn.addEventListener('click', async function() {
+        btn.disabled = true;
+        const origLabel = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating PDF...';
+
+        try {
+          const url = "{{ route('berita-acara-v2.prepare-pdf', ['kode' => $ba->Tr_BA_Main_Code]) }}";
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.content ||
+                       "{{ csrf_token() }}";
+
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': csrf,
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({}),
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error('Gagal generate PDF');
+
+          // Tampilkan preview
+          document.getElementById('wa-web-loading').classList.add('d-none');
+          document.getElementById('wa-web-preview').classList.remove('d-none');
+          document.getElementById('wa-web-text').value = data.wa_text;
+          const pdfLink = document.getElementById('wa-web-pdf-link');
+          pdfLink.href = data.pdf_url;
+          pdfLink.textContent = data.pdf_url.split('/').pop();
+          const showLink = document.getElementById('wa-web-show-link');
+          showLink.href = data.show_url;
+
+          // Open WA Web di tab baru dengan text pre-filled
+          const waUrl = 'https://web.whatsapp.com/send?text=' + encodeURIComponent(data.wa_text);
+          window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+          btn.innerHTML = '<i class="bx bx-check"></i> Opened — kirim ulang?';
+          btn.disabled = false;
+        } catch (err) {
+          alert('Error: ' + err.message);
+          btn.innerHTML = origLabel;
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
 
   <div class="row">
     {{-- Data Umum --}}
