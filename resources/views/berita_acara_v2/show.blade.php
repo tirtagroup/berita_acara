@@ -282,11 +282,26 @@
           const showLink = document.getElementById('wa-web-show-link');
           showLink.href = data.show_url;
 
+          // Auto-copy WA text ke clipboard supaya user bisa paste manual
+          // ke WA Web, WA Desktop, WA mobile, atau aplikasi lain.
+          let copiedOk = false;
+          try {
+            await navigator.clipboard.writeText(data.wa_text);
+            copiedOk = true;
+          } catch (err) {
+            // Fallback browser lama
+            const ta = document.getElementById('wa-web-text');
+            ta.select();
+            try { copiedOk = document.execCommand('copy'); } catch (_) {}
+          }
+
           // Open WA Web di tab baru dengan text pre-filled
           const waUrl = 'https://web.whatsapp.com/send?text=' + encodeURIComponent(data.wa_text);
           window.open(waUrl, '_blank', 'noopener,noreferrer');
 
-          btn.innerHTML = '<i class="bx bx-check"></i> Opened — kirim ulang?';
+          btn.innerHTML = copiedOk
+            ? '<i class="bx bx-check"></i> Copied to clipboard + WA Web opened'
+            : '<i class="bx bx-check"></i> WA Web opened (manual copy)';
           btn.disabled = false;
         } catch (err) {
           alert('Error: ' + err.message);
@@ -294,6 +309,39 @@
           btn.disabled = false;
         }
       });
+    })();
+
+    // Tombol "Copy WA text" di textarea preview (tanpa open WA Web)
+    (function() {
+      const ta = document.getElementById('wa-web-text');
+      if (!ta) return;
+
+      // Tambah button copy di atas textarea via insertAdjacentHTML setelah preview muncul
+      const preview = document.getElementById('wa-web-preview');
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn-sm btn-outline-success mt-2';
+      copyBtn.innerHTML = '<i class="bx bx-copy"></i> Copy WA text saja (tanpa open WA Web)';
+      copyBtn.addEventListener('click', async function() {
+        const text = ta.value;
+        if (!text) return;
+        const orig = copyBtn.innerHTML;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (err) {
+          ta.select();
+          document.execCommand('copy');
+        }
+        copyBtn.innerHTML = '<i class="bx bx-check"></i> Copied!';
+        copyBtn.classList.remove('btn-outline-success');
+        copyBtn.classList.add('btn-success');
+        setTimeout(() => {
+          copyBtn.innerHTML = orig;
+          copyBtn.classList.remove('btn-success');
+          copyBtn.classList.add('btn-outline-success');
+        }, 1500);
+      });
+      preview.appendChild(copyBtn);
     })();
   </script>
 
