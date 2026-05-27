@@ -278,7 +278,8 @@ class PicaV2Controller extends Controller
         $pelakuUser = DB::table('users')
             ->whereRaw('LOWER(username) = ?', [mb_strtolower($pica->Emp_Code ?? '')])
             ->first(['id', 'username', 'name']);
-        $pelakuEmp = DB::table('Ms_User_Emp')
+        $erpDb = config('database.connections.mysql_new.database');
+        $pelakuEmp = DB::table("{$erpDb}.Ms_User_Emp")
             ->where('Ms_Emp_Code', $pica->Emp_Code)
             ->select('Ms_Emp_Code as emp_id', 'Emp_Name as emp_name')
             ->first();
@@ -1199,11 +1200,12 @@ TXT;
             });
         }
         if ($pelakuQ !== '') {
-            $q->where(function ($w) use ($pelakuQ) {
+            $erpDb = config('database.connections.mysql_new.database');
+            $q->where(function ($w) use ($pelakuQ, $erpDb) {
                 $w->where('h.Emp_Code', 'like', "%{$pelakuQ}%")
-                  ->orWhereExists(function ($sub) use ($pelakuQ) {
+                  ->orWhereExists(function ($sub) use ($pelakuQ, $erpDb) {
                       $sub->select(DB::raw(1))
-                          ->from('Ms_User_Emp as me')
+                          ->from(DB::raw("`{$erpDb}`.`Ms_User_Emp` as me"))
                           ->whereColumn('me.Ms_Emp_Code', 'h.Emp_Code')
                           ->where('me.Emp_Name', 'like', "%{$pelakuQ}%");
                   });
@@ -1280,7 +1282,8 @@ TXT;
 
         $empMap = [];
         if (!empty($empIds)) {
-            $empMap = DB::table('Ms_User_Emp')
+            $erpDb = config('database.connections.mysql_new.database');
+            $empMap = DB::table("{$erpDb}.Ms_User_Emp")
                 ->whereIn('Ms_Emp_Code', $empIds)
                 ->select('Ms_Emp_Code', DB::raw('MAX(Emp_Name) as Emp_Name'))
                 ->groupBy('Ms_Emp_Code')

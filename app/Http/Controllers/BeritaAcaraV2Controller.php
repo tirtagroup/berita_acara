@@ -150,7 +150,10 @@ class BeritaAcaraV2Controller extends Controller
         // (Ms_Emp_Code, Ms_Company_Code) sehingga ada duplicate per code lintas company).
 
         // Subquery 1: 1 Emp_Name per Ms_Emp_Code
-        $empSub = DB::table('Ms_User_Emp')
+        // Ms_User_Emp ada di mysql_new (tirt3038_ERP). Pakai cross-DB qualifier
+        // supaya bisa di-leftJoinSub dari koneksi `mysql` (HR_Worksheet).
+        $erpDb = config('database.connections.mysql_new.database');
+        $empSub = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
 
@@ -201,7 +204,8 @@ class BeritaAcaraV2Controller extends Controller
         $kode = $request->query('kode');
         if (!$kode) abort(404, 'Kode BA tidak diberikan');
 
-        $empSubShow = DB::table('Ms_User_Emp')
+        $erpDb = config('database.connections.mysql_new.database');
+        $empSubShow = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
 
@@ -253,8 +257,9 @@ class BeritaAcaraV2Controller extends Controller
         }
 
         // PICA v2 yang link ke BA ini (Fase 6 — BA↔PICA integration)
-        // Subquery Ms_User_Emp untuk emp name (composite PK → dedupe via MAX)
-        $empSubPica = DB::table('Ms_User_Emp')
+        // Subquery Ms_User_Emp untuk emp name (composite PK → dedupe via MAX, cross-DB)
+        $erpDb = config('database.connections.mysql_new.database');
+        $empSubPica = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
         $picaListRaw = DB::table('Tr_PICA_Emp_h as h')
@@ -447,7 +452,8 @@ class BeritaAcaraV2Controller extends Controller
      */
     public function print(string $kode)
     {
-        $empSub = DB::table('Ms_User_Emp')
+        $erpDb = config('database.connections.mysql_new.database');
+        $empSub = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
 
@@ -512,8 +518,9 @@ class BeritaAcaraV2Controller extends Controller
     {
         $perPage = in_array((int) $request->input('per_page'), [10, 25, 50, 100]) ? (int) $request->input('per_page') : 20;
 
-        // Ms_User_Emp composite PK (Ms_Emp_Code, Ms_Company_Code) — dedupe via MAX
-        $empSub = DB::table('Ms_User_Emp')
+        // Ms_User_Emp composite PK (Ms_Emp_Code, Ms_Company_Code) — dedupe via MAX, cross-DB
+        $erpDb = config('database.connections.mysql_new.database');
+        $empSub = DB::table("{$erpDb}.Ms_User_Emp")
             ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
             ->groupBy('Ms_Emp_Code');
 
@@ -651,7 +658,8 @@ class BeritaAcaraV2Controller extends Controller
             return response()->json(['results' => []]);
         }
 
-        $rows = DB::table('Ms_User_Emp')
+        $erpDb = config('database.connections.mysql_new.database');
+        $rows = DB::table("{$erpDb}.Ms_User_Emp")
                     ->where(function ($w) use ($q) {
                         $w->where('Ms_Emp_Code', 'like', "%{$q}%")
                           ->orWhere('Emp_Name', 'like', "%{$q}%");
@@ -941,8 +949,9 @@ class BeritaAcaraV2Controller extends Controller
             // Kumpulkan data tambahan (lookup nama, cabang, lokasi, kategori)
             // Gagal tidak membatalkan penyimpanan BA
             try {
-                // Nama karyawan (subject)
-                $empName = DB::table('Ms_User_Emp')
+                // Nama karyawan (subject) — cross-DB ke mysql_new
+                $erpDbName = config('database.connections.mysql_new.database');
+                $empName = DB::table("{$erpDbName}.Ms_User_Emp")
                     ->where('Ms_Emp_Code', $request->emp_code)
                     ->value('Emp_Name') ?? $request->emp_code;
 
