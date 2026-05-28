@@ -40,21 +40,54 @@
 
   // ---- Auto-attach: hanya di modul BA / PICA / Assessment -------------------
   const path = window.location.pathname.toLowerCase();
-  const moduleRegex = /(beritaacara|^\/pica|create_pica|save_pica|dashboard_pica|detail_check_pica|reprint_pica|priority-note|add_prioritas_note|asasmen|assasmen|asesmen|print_asasmen)/;
-  if (!moduleRegex.test(path)) return;
+  const moduleRegex = /(beritaacara|^\/pica|create_pica|save_pica|dashboard_pica|detail_check_pica|reprint_pica|priority-note|add_prioritas_note|asasmen|assasmen|asesmen|print_asasmen|history_asasmen)/;
+  const isInModule = moduleRegex.test(path);
 
+  // 1) Submit form (GET filter + POST/PUT/DELETE) → tampil loading
   document.addEventListener('submit', function (e) {
     const form = e.target;
     if (!(form instanceof HTMLFormElement)) return;
     if (form.hasAttribute('data-no-swal')) return;
+    if (!isInModule) return;
 
-    const method = (form.method || 'get').toLowerCase();
-    if (method === 'get') return; // search/filter forms → skip
-
-    // Skip form filter DataTables (biasanya di-handle JS sendiri)
+    // Skip live search DataTables (sudah ada filter di sisi client)
     if (form.closest('.dataTables_filter')) return;
+    if (form.matches('[role="search"]')) return;
 
     window.swalLoading('Memproses...');
   }, true);
+
+  // 2) Navigasi (klik <a>) menuju halaman modul yang berat → tampil loading
+  //    Hanya untuk URL yang match moduleRegex, link normal (left-click, no modifier, target tidak _blank).
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a');
+    if (!a) return;
+    if (a.hasAttribute('data-no-swal')) return;
+    if (a.target && a.target !== '' && a.target !== '_self') return;
+    if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
+
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    if (a.hasAttribute('download')) return;
+
+    // Resolve relative URL terhadap origin saat ini
+    let target;
+    try { target = new URL(href, window.location.origin); }
+    catch (_) { return; }
+    if (target.origin !== window.location.origin) return;
+
+    const targetPath = target.pathname.toLowerCase();
+    if (!moduleRegex.test(targetPath)) return;
+
+    // Skip jika sama persis dgn URL saat ini (anchor / no-op navigation)
+    if (targetPath === path && target.search === window.location.search) return;
+
+    window.swalLoading('Memuat halaman...');
+  }, true);
+
+  // Pastikan overlay tertutup saat user pakai back/forward (bfcache)
+  window.addEventListener('pageshow', function () {
+    if (typeof Swal !== 'undefined' && Swal.isVisible()) Swal.close();
+  });
 })();
 </script>
