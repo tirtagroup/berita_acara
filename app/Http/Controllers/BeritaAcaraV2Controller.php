@@ -641,16 +641,32 @@ class BeritaAcaraV2Controller extends Controller
             ->map(fn($d) => '• ' . trim((string) $d))
             ->implode("\n");
 
+        // Format selaras dengan template Mekari Qontak (WaQontakService) — 11 field.
+        $noBa       = $ba->Tr_BA_Main_Code;
+        $konteks    = $ba->Ms_BA_type_Code ?? '-';
+        $tanggal    = \Carbon\Carbon::parse($ba->Date_BA)->format('d M Y');
+        $pelapor    = $ba->pelapor_name ?? $ba->Ms_Pelapor_Code ?? '-';
+        $subject    = $ba->emp_name ?? $ba->Ms_Emp_Code ?? '-';
+        $divisi     = $ba->pelaku_divisi ?? '-';
+        $cabang     = $ba->company_name ?? '-';
+        $lokasi     = $ba->lokasi_name ?? '-';
+        $deskripsi  = mb_substr($ba->BA_Desc ?? '-', 0, 500);
+        $kategoriOut = $kategoriStr ?: '-';
+        $kronoOut    = $kronoStr ?: '-';
+
         $waText = "*BERITA ACARA* 📋\n\n"
-                . "*Kode:* {$ba->Tr_BA_Main_Code}\n"
-                . "*Konteks:* " . ($ba->Ms_BA_type_Code ?? '-') . "\n"
-                . "*Tanggal:* " . \Carbon\Carbon::parse($ba->Date_BA)->format('d M Y') . "\n\n"
-                . "👤 *Karyawan:* " . ($ba->emp_name ?? $ba->Ms_Emp_Code ?? '-') . "\n"
-                . "🏢 *Cabang:* " . ($ba->company_name ?? '-') . "\n"
-                . "📍 *Lokasi:* " . ($ba->lokasi_name ?? '-') . "\n\n"
-                . "📝 *Deskripsi:*\n" . mb_substr($ba->BA_Desc ?? '-', 0, 300) . "\n\n"
-                . ($kategoriStr ? "🏷️ *Kategori:* {$kategoriStr}\n\n" : '')
-                . ($kronoStr ? "📖 *Kronologi:*\n{$kronoStr}\n\n" : '')
+                . "*No BA:* {$noBa}\n"
+                . "*Konteks:* {$konteks}\n"
+                . "*Tanggal:* {$tanggal}\n\n"
+                . "👤 *Pelapor:* {$pelapor}\n"
+                . "🎯 *Subject:* {$subject}\n"
+                . "💼 *Divisi:* {$divisi}\n"
+                . "🏢 *Cabang:* {$cabang}\n"
+                . "📍 *Lokasi:* {$lokasi}\n\n"
+                . "📝 *Deskripsi:*\n{$deskripsi}\n\n"
+                . "🏷️ *Kategori:*\n{$kategoriOut}\n\n"
+                . "📖 *Kronologi:*\n{$kronoOut}\n"
+                . "──────────\n"
                 . "📎 PDF: {$pdfUrl}\n"
                 . "🔗 Detail: {$showUrl}";
 
