@@ -269,8 +269,12 @@
             },
             body: JSON.stringify({}),
           });
+          if (!res.ok) {
+            const txt = await res.text();
+            throw new Error('Server error ' + res.status + ': ' + txt.substring(0, 200));
+          }
           const data = await res.json();
-          if (!data.ok) throw new Error('Gagal generate PDF');
+          if (!data.ok) throw new Error(data.message || 'Gagal generate PDF');
 
           // Tampilkan preview
           document.getElementById('wa-web-loading').classList.add('d-none');

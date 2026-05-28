@@ -469,18 +469,14 @@ class BeritaAcaraV2Controller extends Controller
      */
     private function buildBaPdf(string $kode): array
     {
-        $erpDb = config('database.connections.mysql_new.database');
-        $empSub = DB::table("{$erpDb}.Ms_User_Emp")
-            ->select('Ms_Emp_Code as emp_id', DB::raw('MAX(Emp_Name) as emp_name'))
-            ->groupBy('Ms_Emp_Code');
+        // mPDF + cross-DB lookup bisa makan memory; naikkan limit lokal supaya tidak OOM.
+        @ini_set('memory_limit', '512M');
 
-        // ms_division ada di kedua DB dengan column name beda:
-        //   mysql (HR_Worksheet): div_code
-        //   mysql_new (ERP):       div_id
-        // Pakai ERP (mysql_new) karena `ba.Ms_Emp_Div` referensi emp_division dari Ms_User_Emp.
+        $erpDb = config('database.connections.mysql_new.database');
+
+        // Ambil row BA tanpa join Ms_User_Emp (cross-DB GROUP BY full table = OOM risk).
+        // Nama pelaku & pelapor di-lookup terpisah via value() di bawah.
         $ba = DB::table('Tr_Ba_Main_New as ba')
-            ->leftJoinSub($empSub, 'me', 'me.emp_id', '=', 'ba.Ms_Emp_Code')
-            ->leftJoinSub($empSub, 'mp', 'mp.emp_id', '=', 'ba.Ms_Pelapor_Code')
             ->leftJoin("{$erpDb}.ms_division as dv_pelaku",  'ba.Ms_Emp_Div',     '=', 'dv_pelaku.div_id')
             ->leftJoin("{$erpDb}.ms_division as dv_pelapor", 'ba.Ms_Pelapor_Div', '=', 'dv_pelapor.div_id')
             ->leftJoin('ms_company as c', 'ba.rec_comcode', '=', 'c.company_code')
@@ -488,8 +484,6 @@ class BeritaAcaraV2Controller extends Controller
             ->where('ba.Tr_BA_Main_Code', $kode)
             ->select(
                 'ba.*',
-                'me.emp_name',
-                'mp.emp_name as pelapor_name',
                 DB::raw('COALESCE(dv_pelaku.div_desc,  ba.Ms_Emp_Div)     as pelaku_divisi'),
                 DB::raw('COALESCE(dv_pelapor.div_desc, ba.Ms_Pelapor_Div) as pelapor_divisi'),
                 'c.description as company_name',
@@ -498,6 +492,16 @@ class BeritaAcaraV2Controller extends Controller
             ->first();
 
         abort_unless($ba, 404, "BA dengan kode {$kode} tidak ditemukan");
+
+        // Lookup nama pelaku & pelapor — 2 query ringan dgn WHERE pada PK, no full-table aggregate.
+        $empName = $ba->Ms_Emp_Code
+            ? DB::table("{$erpDb}.Ms_User_Emp")->where('Ms_Emp_Code', $ba->Ms_Emp_Code)->value('Emp_Name')
+            : null;
+        $pelaporName = $ba->Ms_Pelapor_Code
+            ? DB::table("{$erpDb}.Ms_User_Emp")->where('Ms_Emp_Code', $ba->Ms_Pelapor_Code)->value('Emp_Name')
+            : null;
+        $ba->emp_name     = $empName;
+        $ba->pelapor_name = $pelaporName;
 
         $kronologi = DB::table('tr_ba_kronologi')
             ->where('tr_ba_main_code', $ba->Tr_BA_Main_Code)
