@@ -27,6 +27,11 @@ $configData = Helper::appClasses();
   <ul class="menu-inner py-1">
     @foreach ($menuData[0]->menu as $menu)
 
+    {{-- Skip menu yang di-hide via flag "hidden": true di verticalMenu.json --}}
+    @if (!empty($menu->hidden))
+      @continue
+    @endif
+
     {{-- adding active and open class if child is active --}}
 
     {{-- menu headers --}}

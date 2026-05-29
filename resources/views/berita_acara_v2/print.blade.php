@@ -28,7 +28,7 @@
 </head>
 <body>
 
-<h1>BERITA ACARA (BA)</h1>
+<h1>BERITA ACARA</h1>
 
 <table class="meta">
   <tr>
@@ -52,7 +52,6 @@
 </table>
 
 <div class="sect">
-  <h3>Incident Description</h3>
   <div class="box">{!! nl2br(e($ba->BA_Desc ?? '—')) !!}</div>
 </div>
 

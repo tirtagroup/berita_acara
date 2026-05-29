@@ -179,6 +179,7 @@
       ]
     },
     {
+      "hidden": true,
       "name": "Laka",
       "icon": "menu-icon tf-icons fas fa-truck",
       "slug": "forms",
@@ -201,6 +202,7 @@
       ]
     },
     {
+      "hidden": true,
       "name": "Request Revisi",
       "icon": "menu-icon tf-icons bx bx-pencil",
       "slug": "forms",
@@ -265,6 +267,7 @@
       ]
     },
     {
+      "hidden": true,
       "name": "(Kejadian-Temuan)",
       "icon": "menu-icon tf-icons fas fa-hands",
       "slug": "forms",
